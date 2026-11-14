@@ -63,7 +63,43 @@ local function readPoints()
 	return points, true
 end
 
+-- Individual talents: spell ID of the talent -> ranks taken.
+ME.talents = {}
+ME.talentsRead = false
+
+local function readTalents()
+	local talents = {}
+	if not (C_Traits and C_Traits.GetTreeNodes and C_Traits.GetNodeInfo and C_Traits.GetEntryInfo
+		and C_Traits.GetDefinitionInfo and C_Traits.GetConfigInfo) then
+		return talents, false
+	end
+	local configID = activeConfigID()
+	local config = configID and ME.Try(C_Traits.GetConfigInfo, configID)
+	local treeID = config and config.treeIDs and config.treeIDs[1]
+	local nodes = treeID and ME.Try(C_Traits.GetTreeNodes, treeID)
+	if type(nodes) ~= "table" or #nodes == 0 then return talents, false end
+	for _, nodeID in ipairs(nodes) do
+		local node = ME.Try(C_Traits.GetNodeInfo, configID, nodeID)
+		local rank = node and (node.activeRank or node.currentRank) or 0
+		local entryID = node and ((node.activeEntry and node.activeEntry.entryID) or (node.entryIDs and node.entryIDs[1]))
+		if type(rank) == "number" and rank > 0 and entryID then
+			local entry = ME.Try(C_Traits.GetEntryInfo, configID, entryID)
+			local def = entry and entry.definitionID and ME.Try(C_Traits.GetDefinitionInfo, entry.definitionID)
+			if def and def.spellID then talents[def.spellID] = rank end
+		end
+	end
+	return talents, true
+end
+
+-- Ranks in a talent (by its spell ID). When talents cannot be read on this
+-- client, returns `fallback` so callers can use a points-based guess.
+function ME.TalentRank(spellID, fallback)
+	if not ME.talentsRead then return fallback or 0 end
+	return ME.talents[spellID] or 0
+end
+
 function Spec:Update()
+	ME.talents, ME.talentsRead = readTalents()
 	local points, ok = readPoints()
 	ME.specPoints = points
 	ME.specDetected = ok

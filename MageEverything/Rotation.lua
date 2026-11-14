@@ -105,7 +105,8 @@ local function frost()
 		add("ArcaneExplosion", "AoE - point blank")
 	end
 	-- Winter's Chill (deep Frost) makes Cone of Cold worth it on one target.
-	if (ME.specPoints.FROST or 0) >= 26 and ME.WintersChill() >= 5 and S.aggro then
+	local chill = ME.TalentRank(11180, (ME.specPoints.FROST or 0) >= 26 and 1 or 0) -- Winter's Chill
+	if chill > 0 and ME.WintersChill() >= 5 and S.aggro then
 		add("ConeOfCold", "Winter's Chill x5")
 	end
 	if ME.Proc("MissileBarrage") and not S.moving then
@@ -150,7 +151,8 @@ local function fire()
 	end
 	-- Fire Vulnerability on targets that live long enough: build to 5, then
 	-- refresh before it runs out.
-	if S.targetElite and S.inCombat and not S.moving then
+	-- (only with Improved Scorch, which is what applies the debuff)
+	if S.targetElite and S.inCombat and not S.moving and ME.TalentRank(11095, 1) > 0 then
 		local n = ME.ScorchStacks()
 		if n < 5 then
 			add("Scorch", ("Fire Vulnerability %d/5"):format(n))

@@ -108,6 +108,13 @@ local function evaluate()
 			tip = { "No wand equipped.", "A wand finishes low enemies for free and keeps you fighting when out of mana." } }
 	end
 
+	-- Enemy counting (for AoE suggestions) relies on enemy nameplates.
+	if db.nameplates and ME.EnemyNameplatesOff() then
+		list[#list + 1] = { key = "ArcaneExplosion", label = "Nameplates", info = true,
+			tip = { "Enemy nameplates are turned off.", "The addon counts enemies by their nameplates, so AoE suggestions "
+				.. "will not appear. Turn them on in the game's Nameplates options (default key: V)." } }
+	end
+
 	if db.trainer and ME.Training then
 		local missing = ME.Training:Missing()
 		if #missing > 0 then
@@ -122,15 +129,15 @@ local function evaluate()
 	end
 	-- Drink / eat buttons go last so the row does not shift. This client
 	-- hides health and mana from addons even out of combat, so the buttons
-	-- stay available and their glow is driven by a threshold curve instead.
+	-- are always in the row and the game fades them in only when you are low.
 	local mounted = ME.Bool(IsMounted())
 	if db.drink and water and not mounted then
 		list[#list + 1] = { key = "ConjureWater", label = "Drink", item = water, need = "mana",
-			tip = { "Click to drink.", "Glows when your mana is low." } }
+			tip = { "Click to drink." } }
 	end
 	if db.eat and food and not mounted then
 		list[#list + 1] = { key = "ConjureFood", label = "Eat", item = food, need = "health",
-			tip = { "Click to eat.", "Glows when your health is low." } }
+			tip = { "Click to eat." } }
 	end
 	return list
 end
@@ -151,23 +158,25 @@ local function needCurve(threshold)
 	return c
 end
 
--- Sets the glow of a drink / eat button from the hidden health or mana value.
+-- Shows a drink / eat button only when mana or health is low. The value
+-- itself is hidden from addons, so the game sets the button's opacity from
+-- a threshold curve: fully visible below the threshold, invisible above it.
 local function updateNeed(b)
 	local db = ME.db.reminders
 	local done = false
 	if b.need == "mana" and UnitPowerPercent then
 		local curve = needCurve(db.drinkAt)
 		local mana = Enum.PowerType and Enum.PowerType.Mana or 0
-		if curve then done = pcall(function() b.bg:SetAlpha(UnitPowerPercent("player", mana, false, curve)) end) end
+		if curve then done = pcall(function() b:SetAlpha(UnitPowerPercent("player", mana, false, curve)) end) end
 	elseif b.need == "health" and UnitHealthPercent then
 		local curve = needCurve(db.eatAt)
-		if curve then done = pcall(function() b.bg:SetAlpha(UnitHealthPercent("player", true, curve)) end) end
+		if curve then done = pcall(function() b:SetAlpha(UnitHealthPercent("player", true, curve)) end) end
 	end
 	if not done then
-		-- Older clients where the values are readable.
+		-- Clients where the values are readable.
 		local f = (b.need == "mana") and manaFraction() or healthFraction()
 		local limit = (b.need == "mana") and db.drinkAt or db.eatAt
-		b.bg:SetAlpha((f and f < limit) and 1 or 0)
+		b:SetAlpha((f and f < limit) and 1 or 0)
 	end
 end
 
@@ -235,11 +244,12 @@ function Rem:Update()
 		b:Show()
 		b.need = item.need
 		if item.need then
-			-- Steady glow whose strength follows the health / mana curve.
 			b.pulse:Stop()
 			if item.need == "mana" then b.bg:SetColorTexture(0.3, 0.6, 1, 1) else b.bg:SetColorTexture(0.3, 0.9, 0.4, 1) end
+			b.bg:SetAlpha(1)
 			updateNeed(b)
 		else
+			b:SetAlpha(1)
 			b.bg:SetColorTexture(1, 0.82, 0.1, 0.9)
 			b.bg:SetAlpha(1)
 			if not b.pulse:IsPlaying() then b.pulse:Play() end
@@ -286,6 +296,7 @@ function Rem:OnLogin()
 		end
 	end)
 	ME:On("PLAYER_EQUIPMENT_CHANGED", queue)
+	ME:On("CVAR_UPDATE", queue)
 	ME:On("PLAYER_LEVEL_UP", queue)
 	C_Timer.NewTicker(3, queue)
 	-- Keep the drink / eat glow in step with health and mana.

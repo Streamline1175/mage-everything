@@ -180,6 +180,18 @@ function Spells.BookID(name)
 	return hit and hit.id or nil
 end
 
+-- Active spellbook spells the addon has no entry for (for /mage diag).
+function Spells.Uncatalogued()
+	local list = {}
+	for name, hit in pairs(book) do
+		if not nameToKey[name] and not hit.passive then
+			list[#list + 1] = name .. "=" .. tostring(hit.id)
+		end
+	end
+	table.sort(list)
+	return list
+end
+
 -- Entries may also be items, written "item:<id>" (the mana gem).
 local function itemID(key)
 	return type(key) == "string" and tonumber(key:match("^item:(%d+)$")) or nil

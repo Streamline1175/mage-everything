@@ -22,6 +22,18 @@ ME.state = S
 
 local mem = {} -- remembered effect -> expiry time
 
+-- Session counters for /mage diag: which signals has the client delivered?
+local seen = { casts = 0, unknown = {}, glows = 0, targetCasts = 0, focusCasts = 0, auraEvents = 0 }
+ME.seen = seen
+
+-- true when enemy nameplates are switched off (nil if it cannot be told).
+function ME.EnemyNameplatesOff()
+	local get = (C_CVar and C_CVar.GetCVar) or GetCVar
+	local v = get and ME.Try(get, "nameplateShowEnemies")
+	if v == nil or ME.issecret(v) then return nil end
+	return tostring(v) == "0"
+end
+
 local function now() return GetTime() end
 
 function ME.Remember(name, seconds) mem[name] = now() + seconds end
@@ -407,7 +419,14 @@ function State:OnLogin()
 	ME:On("UNIT_SPELLCAST_SUCCEEDED", function(unit, _, spellID)
 		if unit == "player" then
 			local key = ME.KeyForSpell(spellID)
-			if key then onPlayerCast(key) end
+			seen.casts = seen.casts + 1
+			if key then
+				onPlayerCast(key)
+			elseif not issecret(spellID) then
+				-- Casts the addon has no entry for (shown by /mage diag).
+				local name = ME.Spells.SpellName(spellID) or "?"
+				seen.unknown[name .. " (" .. tostring(spellID) .. ")"] = true
+			end
 			if not S.channeling then S.casting = nil end
 		elseif unit == "target" then
 			S.targetCasting = false
@@ -420,10 +439,13 @@ function State:OnLogin()
 			S.casting = ME.KeyForSpell(spellID) or "?"
 		elseif unit == "target" then
 			S.targetCasting = true
+			seen.targetCasts = seen.targetCasts + 1
 		elseif unit == "focus" then
 			S.focusCasting = true
+			seen.focusCasts = seen.focusCasts + 1
 		end
 	end)
+	ME:On("UNIT_AURA", function(unit) if unit == "player" then seen.auraEvents = seen.auraEvents + 1 end end)
 	ME:On("PLAYER_FOCUS_CHANGED", function() S.focusCasting = false end)
 	ME:On("UNIT_SPELLCAST_CHANNEL_START", function(unit, _, spellID)
 		if unit == "player" then
@@ -452,6 +474,7 @@ function State:OnLogin()
 	-- Proc glows: Blizzard tells the UI which button to light up; that event
 	-- carries a plain spell ID and is the most reliable proc signal in combat.
 	ME:On("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW", function(spellID)
+		seen.glows = seen.glows + 1
 		local key = ME.KeyForSpell(spellID)
 		if key and not S.overlay[key] then
 			S.overlay[key] = true

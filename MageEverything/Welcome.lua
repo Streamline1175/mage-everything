@@ -10,6 +10,12 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.4.0"] = {
+		"Drink and Eat buttons now only appear when your mana or health is low.",
+		"The addon reads your individual talents, so talent-specific advice (Winter's Chill, Improved Scorch) is exact.",
+		"A warning appears if enemy nameplates are off, since AoE suggestions need them.",
+		"/mage diag now lists talents, missing keybinds, unrecognised spells and what the game has sent this session.",
+	},
 	["1.3.3"] = {
 		"Experience bar: brighter fill, lighter text backing, and no pale strips above or below it.",
 		"Drink and Eat buttons now work: they stay available out of combat and glow when mana or health is low.",

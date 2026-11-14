@@ -92,10 +92,11 @@ local function buildPanel()
 	check(db.reminders, "armor", "Remind: armor spell", nil)
 	check(db.reminders, "conjure", "Remind: conjure water and food", nil)
 	check(db.reminders, "gem", "Remind: mana gem", nil)
-	check(db.reminders, "drink", "Button: drink", "Uses your best conjured water. Glows when mana is low.")
-	check(db.reminders, "eat", "Button: eat", "Uses your best conjured food. Glows when health is low.")
-	slider(db.reminders, "drinkAt", "Drink glow below this mana", nil, 0.1, 0.9, 0.05, "%.2f")
-	slider(db.reminders, "eatAt", "Eat glow below this health", nil, 0.1, 0.9, 0.05, "%.2f")
+	check(db.reminders, "drink", "Button: drink", "Appears when mana is low. Uses your best conjured water.")
+	check(db.reminders, "eat", "Button: eat", "Appears when health is low. Uses your best conjured food.")
+	slider(db.reminders, "drinkAt", "Show Drink below this mana", nil, 0.1, 0.95, 0.05, "%.2f")
+	slider(db.reminders, "eatAt", "Show Eat below this health", nil, 0.1, 0.95, 0.05, "%.2f")
+	check(db.reminders, "nameplates", "Warn when enemy nameplates are off", "They are needed to count enemies for AoE suggestions.")
 	check(db.reminders, "wand", "Remind: no wand equipped", nil)
 	check(db.reminders, "curse", "Button: Remove Lesser Curse", "Out of combat only; curses are hidden from addons during a fight.")
 	check(db.reminders, "trainer", "Remind: new spells at the trainer", "Also announces them when you level up.")
@@ -181,6 +182,46 @@ function Options:Diagnose()
 			tostring(ready), why and (" (" .. why .. ")") or ""))
 		p("  wand equipped:", yn(ME.HasWand()), "sheep timer:", ("%d"):format(ME.SheepRemaining()),
 			"target casting seen:", yn(ME.state.targetCasting))
+	end
+	-- Talents actually taken (drives talent-specific rotation rules).
+	do
+		local parts = {}
+		for id, rank in pairs(ME.talents or {}) do
+			parts[#parts + 1] = (ME.Spells.SpellName(id) or tostring(id)) .. " " .. rank
+		end
+		table.sort(parts)
+		p("  talents read:", yn(ME.talentsRead), #parts > 0 and table.concat(parts, ", ") or "")
+	end
+	-- Settings and setup that silently change what the addon can do.
+	do
+		local off = ME.EnemyNameplatesOff()
+		p("  enemy nameplates on (needed to count enemies for AoE):", yn(off == nil and nil or not off))
+		local unbound = {}
+		for _, key in ipairs({ "Frostbolt", "Fireball", "FireBlast", "IceLance", "FrostNova", "ArcaneMissiles", "ArcaneExplosion",
+			"ConeOfCold", "Blizzard", "Flamestrike", "Pyroblast", "Scorch", "ArcaneBlast", "ArcaneWrath", "Counterspell",
+			"Polymorph", "IceBarrier", "IceBlock", "ManaShield", "Evocation", "Blink", "ColdSnap", "Shoot" }) do
+			if ME.Known(key) and not ME.Keybind(key) then unbound[#unbound + 1] = key end
+		end
+		p("  suggested spells with no keybind found:", #unbound > 0 and table.concat(unbound, ", ") or "none")
+		if C_Secrets and C_Secrets.GetPowerTypeSecrecy and C_Secrets.GetSpellAuraSecrecy then
+			local names = { [0] = "never hidden", [1] = "always hidden", [2] = "hidden in combat" }
+			local function level(v) return names[ME.Plain(v, -1)] or "?" end
+			p("  secrecy: mana", level(ME.Try(C_Secrets.GetPowerTypeSecrecy, 0)),
+				"| Clearcasting", level(ME.Try(C_Secrets.GetSpellAuraSecrecy, 12536)),
+				"| Fingers of Frost", level(ME.Try(C_Secrets.GetSpellAuraSecrecy, 400669)))
+		end
+	end
+	-- What the game has actually sent this session.
+	do
+		local seen = ME.seen
+		p(("  events this session: own casts %d, target casts %d, focus casts %d, aura updates %d, proc glows %d"):format(
+			seen.casts, seen.targetCasts, seen.focusCasts, seen.auraEvents, seen.glows))
+		local unknown = {}
+		for name in pairs(seen.unknown) do unknown[#unknown + 1] = name end
+		table.sort(unknown)
+		p("  casts the addon does not recognise:", #unknown > 0 and table.concat(unknown, ", ") or "none")
+		local extra = ME.Spells.Uncatalogued()
+		p("  spellbook spells the addon has no entry for:", #extra > 0 and table.concat(extra, ", ") or "none")
 	end
 	local assist = C_AssistedCombat and C_AssistedCombat.IsAvailable and ME.Try(C_AssistedCombat.IsAvailable)
 	p("  Blizzard rotation assistant:", yn(assist))
