@@ -56,6 +56,8 @@ when you respec or swap dual spec. `/mage spec fire` forces one.
 ```
 /mage                 options panel
 /mage unlock | lock   move the frames (drag the blue boxes)
+                      - opening the game's Edit Mode shows the same blue boxes
+                      - Shift-drag the XP bar to move it at any time
 /mage reset           put frames back
 /mage portals         teleport / portal menu
 /mage spec auto|arcane|fire|frost

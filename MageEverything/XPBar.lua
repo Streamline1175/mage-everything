@@ -68,7 +68,7 @@ local function build()
 	local db = ME.db.xp
 	root = CreateFrame("Frame", "MageEverythingXPBar", UIParent)
 	root:SetSize(db.width, db.height)
-	ME:MakeMovable(root, "xp", "XP bar", "BOTTOM", 0, 6)
+	ME:MakeMovable(root, "xp", "XP bar", "BOTTOM", 0, 6, true)
 
 	local bg = root:CreateTexture(nil, "BACKGROUND")
 	bg:SetPoint("TOPLEFT", -2, 2)
@@ -260,6 +260,7 @@ function XP:Tooltip()
 	GameTooltip:AddDoubleLine("Session XP", ME.Comma(session.gained), 1, 1, 1, 1, 1, 1)
 	GameTooltip:AddDoubleLine("Session kills", tostring(session.kills), 1, 1, 1, 1, 1, 1)
 	GameTooltip:AddDoubleLine("Session time", ME.Duration(GetTime() - session.start), 1, 1, 1, 1, 1, 1)
+	GameTooltip:AddLine("Shift-drag to move", 0.6, 0.6, 0.6)
 	GameTooltip:Show()
 end
 

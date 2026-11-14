@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.1.1"] = {
+		"Frames can now be moved from the game's Edit Mode: open it and drag the blue boxes.",
+		"Shift-drag the XP bar to move it at any time.",
+		"Drag handles are larger, so the thin XP bar is easy to grab.",
+	},
 	["1.1.0"] = {
 		"New logo and this welcome guide.",
 		"Spell data matched to the Forever 1.60.1 game tables.",
@@ -243,7 +248,7 @@ local function buildPages()
 		ME:SetLocked(false)
 	end)
 	move:SetPoint("BOTTOMLEFT", 0, 4)
-	local moveHint = text(p, "GameFontDisableSmall", "Closes this guide and unlocks everything for dragging. Type /mage lock when done.")
+	local moveHint = text(p, "GameFontDisableSmall", "Closes this guide and unlocks everything for dragging. Type /mage lock when done. Edit Mode shows the same handles.")
 	moveHint:SetPoint("LEFT", move, "RIGHT", 10, 0)
 	moveHint:SetWidth(360)
 	p.OnShow = function(self)
@@ -255,7 +260,7 @@ local function buildPages()
 	paragraph(p, table.concat({
 		"|cff69ccf0Commands|r",
 		"  /mage                   options",
-		"  /mage unlock  |  lock   move the frames",
+		"  /mage unlock  |  lock   move the frames (or open Edit Mode; Shift-drag the XP bar)",
 		"  /mage portals           teleport and portal menu",
 		"  /mage spec fire         force a rotation (auto, arcane, fire, frost)",
 		"  /mage diag              show what the game lets the addon read",

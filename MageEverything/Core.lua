@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.1.0"
+ME.version = "1.1.1"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -177,43 +177,89 @@ function ME:RestorePosition(f, key, point, x, y)
 	end
 end
 
--- Adds a drag handle shown only while frames are unlocked.
-function ME:MakeMovable(f, key, label, point, x, y)
+local function savePosition(f)
+	f:StopMovingOrSizing()
+	local p, _, rp, px, py = f:GetPoint(1)
+	if p then ME.db.pos[f.meKey] = { p, rp, px, py } end
+end
+
+-- Makes a frame movable three ways:
+--   * /mage unlock shows a blue drag handle over it,
+--   * the game's Edit Mode shows the same handles while it is open,
+--   * with `shiftDrag`, Shift+drag on the frame itself works at any time.
+function ME:MakeMovable(f, key, label, point, x, y, shiftDrag)
 	f.meDefault = { point or "CENTER", x or 0, y or 0 }
+	f.meKey = key
 	self:RestorePosition(f, key, point, x, y)
 	f:SetMovable(true)
 	f:SetClampedToScreen(true)
 
+	-- The handle is padded so thin frames (the XP bar) are easy to grab.
 	local h = CreateFrame("Frame", nil, f)
-	h:SetAllPoints(f)
+	h:SetPoint("TOPLEFT", f, "TOPLEFT", -4, 10)
+	h:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 4, -10)
 	h:SetFrameStrata("DIALOG")
+	h:SetFrameLevel(100)
 	h:EnableMouse(true)
 	h:RegisterForDrag("LeftButton")
 	local bg = h:CreateTexture(nil, "OVERLAY")
 	bg:SetAllPoints()
-	bg:SetColorTexture(0.2, 0.7, 1, 0.35)
+	bg:SetColorTexture(0.2, 0.7, 1, 0.45)
 	local txt = h:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	txt:SetPoint("CENTER")
-	txt:SetText(label or key)
+	txt:SetText((label or key) .. " - drag me")
 	h:SetScript("OnDragStart", function() f:StartMoving() end)
-	h:SetScript("OnDragStop", function()
-		f:StopMovingOrSizing()
-		local p, _, rp, px, py = f:GetPoint(1)
-		ME.db.pos[key] = { p, rp, px, py }
-	end)
+	h:SetScript("OnDragStop", function() savePosition(f) end)
+	h:SetScript("OnMouseUp", function() savePosition(f) end)
 	h:Hide()
 	f.meHandle = h
-	f.meKey = key
+
+	if shiftDrag then
+		f:EnableMouse(true)
+		f:RegisterForDrag("LeftButton")
+		f:SetScript("OnDragStart", function(self)
+			if IsShiftKeyDown() then
+				self.meDragging = true
+				self:StartMoving()
+			end
+		end)
+		f:SetScript("OnDragStop", function(self)
+			if self.meDragging then
+				self.meDragging = nil
+				savePosition(self)
+			end
+		end)
+	end
 	self.movers[#self.movers + 1] = f
 end
 
-function ME:SetLocked(locked)
+function ME:SetLocked(locked, silent)
 	self.db.locked = locked
 	for _, f in ipairs(self.movers) do
 		f.meHandle:SetShown(not locked)
 	end
 	self:Fire("LOCK_CHANGED", locked)
-	self:Print(locked and "Frames locked." or "Frames unlocked - drag the blue boxes, then /mage lock.")
+	if not silent then
+		self:Print(locked and "Frames locked." or "Frames unlocked - drag the blue boxes, then /mage lock.")
+	end
+end
+
+-- Follow the game's Edit Mode: handles appear while it is open.
+local unlockedByEditMode = false
+function ME:HookEditMode()
+	if not (EventRegistry and EventRegistry.RegisterCallback) then return end
+	EventRegistry:RegisterCallback("EditMode.Enter", function()
+		if ME.active and ME.db.locked then
+			unlockedByEditMode = true
+			ME:SetLocked(false, true)
+		end
+	end, ME)
+	EventRegistry:RegisterCallback("EditMode.Exit", function()
+		if ME.active and unlockedByEditMode then
+			unlockedByEditMode = false
+			ME:SetLocked(true, true)
+		end
+	end, ME)
 end
 
 function ME:ResetPositions()
@@ -278,6 +324,9 @@ ME:On("PLAYER_LOGIN", function()
 			end
 		end
 	end
+	-- Never start a session with handles left showing.
+	ME.db.locked = true
+	pcall(ME.HookEditMode, ME)
 	ME:Fire("READY")
 	ME:Print(("v%s loaded. /mage for options."):format(ME.version))
 end)
