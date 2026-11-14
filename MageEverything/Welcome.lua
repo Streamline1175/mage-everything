@@ -10,6 +10,10 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.3.1"] = {
+		"Removed the pale glow strips above and below the experience bar.",
+		"Everything from 1.3.0: Polymorph timer, wand badge, food and drink buttons, trainer reminders, profiles.",
+	},
 	["1.3.0"] = {
 		"Polymorph: a countdown from your cast, a warning before it ends, and a prompt to sheep the add.",
 		"Wand: a finisher badge when your target is nearly dead, and a reminder if no wand is equipped.",

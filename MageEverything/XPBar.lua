@@ -11,8 +11,8 @@ local FX = ME.FX
 local STAR = "Interface\\Cooldown\\star4"
 
 local root, restedBar, questBar, xpBar, fillClip, over, fxFrame
-local text, plateL, plateR, detail, emblem, rings, shine, flash, orb, edgeTop, edgeBottom
-local waves, motes, gains, edgePulse = {}, {}, {}, {}
+local text, plateL, plateR, detail, emblem, rings, shine, flash, orb
+local waves, motes, gains = {}, {}, {}
 local session = { start = 0, gained = 0, kills = 0, killXP = 0, lastXP = nil, lastMax = nil, window = {}, recent = {} }
 local RECENT_KILLS = 10 -- kills averaged for the "kills to level" estimate
 local WINDOW = 600 -- seconds of history used for the XP/hour estimate
@@ -133,20 +133,6 @@ local function build()
 	bg:SetColorTexture(0.01, 0.01, 0.03, 0.88)
 	root.border = FX.Border(root, 1, 0.3, 0.3, 0.3, 1)
 
-	-- Soft glow above and below the bar that breathes in the spec colour.
-	edgeTop = root:CreateTexture(nil, "BACKGROUND", nil, -1)
-	edgeTop:SetTexture(FX.WHITE)
-	edgeTop:SetBlendMode("ADD")
-	edgeTop:SetPoint("BOTTOMLEFT", root, "TOPLEFT", -2, 1)
-	edgeTop:SetPoint("BOTTOMRIGHT", root, "TOPRIGHT", 2, 1)
-	edgeTop:SetHeight(9)
-	edgeBottom = root:CreateTexture(nil, "BACKGROUND", nil, -1)
-	edgeBottom:SetTexture(FX.WHITE)
-	edgeBottom:SetBlendMode("ADD")
-	edgeBottom:SetPoint("TOPLEFT", root, "BOTTOMLEFT", -2, -1)
-	edgeBottom:SetPoint("TOPRIGHT", root, "BOTTOMRIGHT", 2, -1)
-	edgeBottom:SetHeight(9)
-
 	restedBar = layer(1, 0.35)
 	questBar = layer(2, 0.55)
 	xpBar = layer(3, 1)
@@ -176,7 +162,7 @@ local function build()
 	sheen:SetPoint("TOPLEFT", fill, "TOPLEFT")
 	sheen:SetPoint("TOPRIGHT", fill, "TOPRIGHT")
 	sheen:SetHeight(math.max(2, db.height * 0.45))
-	sheen:SetGradient("VERTICAL", CreateColor(1, 1, 1, 0), CreateColor(1, 1, 1, 0.28))
+	sheen:SetGradient("VERTICAL", CreateColor(1, 1, 1, 0), CreateColor(1, 1, 1, 0.10))
 	root.sheen = sheen
 	root.sheenPulse = FX.Pulse(sheen, 1, 0.35, 1.8)
 
@@ -426,23 +412,16 @@ function XP:ApplyTheme(animate)
 	orb.b:SetVertexColor(1, 1, 1)
 	orb.core:SetVertexColor(t.r, t.g, t.b)
 	for _, w in ipairs(waves) do w:SetVertexColor(math.min(1, t.r + 0.3), math.min(1, t.g + 0.3), math.min(1, t.b + 0.3)) end
-	edgeTop:SetGradient("VERTICAL", CreateColor(t.r, t.g, t.b, 0.55), CreateColor(t.r, t.g, t.b, 0))
-	edgeBottom:SetGradient("VERTICAL", CreateColor(t.r, t.g, t.b, 0), CreateColor(t.r, t.g, t.b, 0.55))
 
 	-- Restart everything whose speed depends on the tree.
-	for i, tex in ipairs({ edgeTop, edgeBottom }) do
-		if edgePulse[i] then edgePulse[i]:Stop() end
-		edgePulse[i] = FX.Pulse(tex, 1, 0.3, st.breathe)
-	end
 	orb.a.spinAnim:SetDuration(st.spin)
 	orb.b.spinAnim:SetDuration(st.spin * 1.5)
 	root.sheenPulse:Stop()
 	orb.a.spin:Stop(); orb.b.spin:Stop(); orb.pulse:Stop()
 	local fxOn = db.effects
-	for _, r in ipairs({ edgeTop, edgeBottom, root.sheen, orb.a, orb.b }) do r:SetShown(fxOn) end
+	for _, r in ipairs({ root.sheen, orb.a, orb.b }) do r:SetShown(fxOn) end
 	fxFrame:SetShown(fxOn)
 	if fxOn then
-		edgePulse[1]:Play(); edgePulse[2]:Play()
 		root.sheenPulse:Play()
 		orb.a.spin:Play(); orb.b.spin:Play(); orb.pulse:Play()
 	end
