@@ -196,6 +196,9 @@ local function build()
 	spinner(orb.b, 9, -1)
 	orb.pulse = FX.Pulse(orb.core, 1, 0.45, 0.7)
 	orb.pop = FX.Pop(orb, 2.4, 0.35)
+	-- The leading-edge orb is switched off (it was distracting); the frame
+	-- stays so the code that positions effects around it keeps working.
+	orb:Hide()
 
 	flash = over:CreateTexture(nil, "OVERLAY", nil, 2)
 	flash:SetAllPoints(root)
@@ -425,7 +428,7 @@ function XP:ApplyTheme(animate)
 	fxFrame:SetShown(fxOn)
 	if fxOn then
 		root.sheenPulse:Play()
-		orb.a.spin:Play(); orb.b.spin:Play(); orb.pulse:Play()
+
 	end
 	restartWaves()
 
@@ -480,7 +483,6 @@ function XP:Update()
 	questBar:SetValue(quest > 0 and math.min(max, cur + quest) or 0)
 	xpBar:SetMinMaxValues(0, max)
 	if smooth then xpBar:SetValue(cur, smooth) else xpBar:SetValue(cur) end
-	orb:SetShown(cur > 0)
 
 	setMainText(("|cff%sLevel %d|r   %s / %s   |cff%s%.1f%%|r"):format(
 		hex(t), level, ME.Comma(cur), ME.Comma(max), hex(t), cur / max * 100))

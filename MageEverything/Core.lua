@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.4.2"
+ME.version = "1.4.3"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
