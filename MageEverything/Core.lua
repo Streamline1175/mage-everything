@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.2.0"
+ME.version = "1.3.0"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -48,8 +48,10 @@ ME.defaults = {
 		enabled = true, scale = 1.0, alphaOOC = 0.55, showQueue = true, showReason = true,
 		showKeybind = true, showBars = true, showRing = true, onlyWithTarget = true,
 		aoeThreshold = 3, useBlizzardAssist = false, useWand = true, fireballFiller = false,
+		wandFinish = true, wandFinishAt = 0.2, sheepTimer = true,
 	},
-	reaction = { enabled = true, nova = true, counterspell = true, shields = true, evocation = true },
+	reaction = { enabled = true, nova = true, counterspell = true, shields = true, evocation = true,
+		polymorph = true, gem = true },
 	panic = { enabled = true, health = 0.35, mana = 0.20 },
 	cooldowns = { enabled = true, scale = 1.0 },
 	alerts = { enabled = true, sound = true, scale = 1.0 },
@@ -57,7 +59,8 @@ ME.defaults = {
 		enabled = true, hideBlizzard = true, width = 520, height = 20, showText = true, showDetail = true,
 		showQuestXP = true, effects = true,
 	},
-	reminders = { enabled = true, intellect = true, armor = true, conjure = true, gem = true, drink = true, drinkAt = 0.45 },
+	reminders = { enabled = true, intellect = true, armor = true, conjure = true, gem = true, drink = true, drinkAt = 0.45,
+		eat = true, eatAt = 0.6, wand = true, curse = true, trainer = true },
 	portals = { enabled = true },
 	qol = { sellJunk = true, autoRepair = true },
 	pos = {},
@@ -302,11 +305,65 @@ end
 ---------------------------------------------------------------------------
 -- Startup
 ---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- Profiles: each character gets its own settings (copied from the first
+-- character's on first login). /mage profile lists, shares and copies them.
+---------------------------------------------------------------------------
+local function characterKey()
+	local name = UnitName("player")
+	local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName and GetRealmName()) or ""
+	if type(name) ~= "string" or name == "" or issecretvalue(name) then return nil end
+	return name .. "-" .. tostring(realm or "")
+end
+
+function ME:SelectProfile()
+	local root = self.root
+	local key = characterKey()
+	if not key then return false end
+	self.charKey = key
+	local name = root.chars[key]
+	if not name or not root.profiles[name] then
+		name = key
+		if not root.profiles[name] then
+			-- New character: start from the original settings if there are any.
+			root.profiles[name] = root.profiles.Default and CopyTable(root.profiles.Default) or {}
+		end
+		root.chars[key] = name
+	end
+	applyDefaults(root.profiles[name], self.defaults)
+	self.db = root.profiles[name]
+	self.profileName = name
+	return true
+end
+
+-- Finds a profile by name, ignoring case.
+function ME:FindProfile(name)
+	name = (name or ""):lower()
+	for n in pairs(self.root.profiles) do
+		if n:lower() == name then return n end
+	end
+end
+
 ME:On("ADDON_LOADED", function(name)
 	if name ~= ADDON then return end
-	MageEverythingDB = MageEverythingDB or {}
-	applyDefaults(MageEverythingDB, ME.defaults)
-	ME.db = MageEverythingDB
+	local root = MageEverythingDB
+	if type(root) ~= "table" then root = {} end
+	if type(root.profiles) ~= "table" then
+		-- Older versions kept one flat settings table: keep it as "Default".
+		local old = root
+		root = { enabled = old.enabled ~= false, profiles = {}, chars = {} }
+		old.enabled = nil
+		if next(old) then root.profiles.Default = old end
+	end
+	root.chars = root.chars or {}
+	if root.enabled == nil then root.enabled = true end
+	MageEverythingDB = root
+	ME.root = root
+	if not ME:SelectProfile() then
+		-- Character name not available yet: use defaults until login.
+		ME.db = {}
+		applyDefaults(ME.db, ME.defaults)
+	end
 end)
 
 ME:On("PLAYER_LOGIN", function()
@@ -316,7 +373,8 @@ ME:On("PLAYER_LOGIN", function()
 		-- Class addon: stay completely inert on other classes.
 		return
 	end
-	if not ME.db.enabled then
+	if not ME.charKey then ME:SelectProfile() end
+	if not ME.root.enabled then
 		ME:Print("Disabled. Type /mage on to enable, then /reload.")
 		return
 	end

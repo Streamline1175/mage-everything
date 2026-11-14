@@ -38,6 +38,7 @@ local function rebuildBinds()
 				local spellID = ME.Try(GetMacroSpell, id)
 				name = spellID and ME.Spells.SpellName(spellID)
 			end
+			if kind == "item" and id then name = "item:" .. id end
 			if name and not binds[name] then
 				local key = GetBindingKey(bar[2] .. i)
 				if key then binds[name] = shortKey(key) end
@@ -47,14 +48,15 @@ local function rebuildBinds()
 end
 
 function ME.Keybind(key)
+	if ME.ItemID(key) then return binds[key] end
 	return binds[ME.SpellLabel(key)]
 end
 
 ---------------------------------------------------------------------------
 -- Construction
 ---------------------------------------------------------------------------
-local root, main, queue, react, panicFrame, bars, lowMana
-local healthCurve, manaCurve
+local root, main, queue, react, panicFrame, bars, lowMana, sheep, wand
+local healthCurve, manaCurve, wandCurve
 
 local function makeSlot(parent, size)
 	local icon = FX.Icon(parent, size)
@@ -81,6 +83,7 @@ end
 function HUD:BuildCurves()
 	healthCurve = stepCurve(ME.db.panic.health)
 	manaCurve = stepCurve(ME.db.panic.mana)
+	wandCurve = stepCurve(ME.db.hud.wandFinishAt or 0.2)
 end
 
 local function build()
@@ -122,6 +125,36 @@ local function build()
 	react.label = rl
 	react.shake = FX.Shake(react)
 	react:Hide()
+
+	-- Polymorph timer: a countdown started by your own cast.
+	sheep = makeSlot(root, 34)
+	sheep:SetPoint("BOTTOM", react, "TOP", 0, 24)
+	sheep.tex:SetTexture(ME.SpellIcon("Polymorph"))
+	sheep.time = sheep.top:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	sheep.time:SetPoint("CENTER", 0, 0)
+	sheep.time:SetTextColor(1, 1, 1)
+	local sl = root:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	sl:SetPoint("BOTTOM", sheep, "TOP", 0, 2)
+	sl:SetText("Sheep")
+	sheep.label = sl
+	sheep.pulse = FX.Pulse(sheep, 1, 0.35, 0.35)
+	sheep:Hide()
+	sl:Hide()
+
+	-- Wand finisher: fades in when the target is nearly dead (shown by a
+	-- health curve, like the low-health alert), to save mana on the kill.
+	wand = CreateFrame("Frame", nil, root)
+	wand:SetSize(40, 40)
+	wand:SetPoint("BOTTOM", queue[1], "TOP", 10, 24)
+	wand:SetAlpha(0)
+	wand.icon = makeSlot(wand, 34)
+	wand.icon:SetPoint("CENTER")
+	wand.icon.cd:Hide()
+	wand.icon.tex:SetTexture(ME.SpellIcon("Shoot"))
+	wand.icon.border:SetColor(0.9, 0.8, 0.3, 1)
+	local wl = wand:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	wl:SetPoint("BOTTOM", wand.icon, "TOP", 0, 2)
+	wl:SetText("Wand finish")
 
 	-- Low-health alert. Its visibility is an alpha value computed by the
 	-- client from a health curve, so it works while health itself is hidden.
@@ -245,7 +278,24 @@ local function updateVitals()
 	if ME.demo then
 		panicFrame:SetAlpha(1)
 		lowMana:SetAlpha(1)
+		wand:SetAlpha(1)
 		return
+	end
+
+	-- Wand finisher badge.
+	local showWand = ME.db.hud.wandFinish and S.inCombat and S.hasTarget and not S.channeling
+		and ME.Known("Shoot") and ME.HasWand()
+	if not showWand then
+		wand:SetAlpha(0)
+	else
+		local ok = false
+		if wandCurve and UnitHealthPercent then
+			ok = pcall(function() wand:SetAlpha(UnitHealthPercent("target", true, wandCurve)) end)
+		end
+		if not ok then
+			local hp, max = ME.Plain(UnitHealth("target")), ME.Plain(UnitHealthMax("target"))
+			wand:SetAlpha((hp and max and max > 0 and hp / max <= (ME.db.hud.wandFinishAt or 0.2)) and 1 or 0)
+		end
 	end
 	if not p.enabled or not S.inCombat then
 		panicFrame:SetAlpha(0)
@@ -322,6 +372,30 @@ local function render()
 		panicFrame.icon.keybind:SetText(ME.Keybind(pk) or "")
 	end
 
+	-- Polymorph timer
+	local left = ME.demo and 23 or ME.SheepRemaining()
+	if db.sheepTimer and left > 0 then
+		sheep.time:SetText(("%d"):format(math.ceil(left)))
+		if not sheep:IsShown() then
+			sheep:Show()
+			sheep.label:Show()
+		end
+		if left < 6 then
+			sheep.border:SetColor(1, 0.15, 0.15, 1)
+			if not sheep.pulse:IsPlaying() then sheep.pulse:Play() end
+		else
+			sheep.border:SetColor(0.9, 0.5, 0.9, 1)
+			sheep.pulse:Stop()
+		end
+	elseif sheep:IsShown() then
+		sheep.pulse:Stop()
+		sheep:Hide()
+		sheep.label:Hide()
+	end
+	if wand.icon.kb ~= true then
+		wand.icon.keybind:SetText(ME.Keybind("Shoot") or "")
+	end
+
 	updateVitals()
 	cdDirty = false
 end
@@ -355,5 +429,9 @@ function HUD:OnLogin()
 	ME:Listen("SPELLS_UPDATED", queueBinds)
 
 	ME:On("SPELL_UPDATE_COOLDOWN", function() cdDirty = true end)
+	ME:Listen("SHEEP", function(duration)
+		pcall(sheep.cd.SetCooldown, sheep.cd, GetTime(), duration)
+		sheep.cd:SetHideCountdownNumbers(true)
+	end)
 	ME:Listen("SPEC_CHANGED", function() HUD:ApplyTheme() end)
 end

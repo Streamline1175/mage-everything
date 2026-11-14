@@ -146,6 +146,20 @@ function Alerts:OnLogin()
 		end
 	end)
 
+	-- Polymorph about to run out (timer from your own cast).
+	local sheepWarned = true
+	ME:Listen("SHEEP", function() sheepWarned = false end)
+	C_Timer.NewTicker(0.5, function()
+		if sheepWarned then return end
+		local left = ME.SheepRemaining()
+		if left <= 0 then
+			sheepWarned = true
+		elseif left < 5 and ME.state.inCombat then
+			sheepWarned = true
+			Alerts:Show("sheep", ME.SpellIcon("Polymorph"), "SHEEP ENDING", "Polymorph again", 0.95, 0.55, 0.95)
+		end
+	end)
+
 	ME:On("PLAYER_LEVEL_UP", function(level)
 		local t = FX.Theme()
 		Alerts:Show("levelup", t.icon, "LEVEL " .. tostring(level), t.name .. " Mage", 1, 0.82, 0.1)

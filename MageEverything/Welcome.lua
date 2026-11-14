@@ -10,6 +10,14 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.3.0"] = {
+		"Polymorph: a countdown from your cast, a warning before it ends, and a prompt to sheep the add.",
+		"Wand: a finisher badge when your target is nearly dead, and a reminder if no wand is equipped.",
+		"Click-to-use food and drink buttons; mana gem suggested when you run dry.",
+		"Trainer reminders: what you can learn now, and a banner when a level unlocks more.",
+		"Interrupt prompt for a casting focus; Remove Lesser Curse button out of combat.",
+		"Settings are now per character (/mage profile). /mage diag opens a window you can copy from.",
+	},
 	["1.2.0"] = {
 		"Demo mode: /mage demo plays sample content in every section so you can arrange the layout.",
 		"Experience bar redesign: outlined text on a dark plate, with details on their own line.",
@@ -275,7 +283,8 @@ local function buildPages()
 		"  /mage demo              sample content everywhere, for arranging the layout",
 		"  /mage portals           teleport and portal menu",
 		"  /mage spec fire         force a rotation (auto, arcane, fire, frost)",
-		"  /mage diag              show what the game lets the addon read",
+		"  /mage diag              show what the game lets the addon read (copyable)",
+		"  /mage profile           per-character settings",
 		"  /mage welcome           this guide",
 		"",
 		"|cff69ccf0What the game allows|r",

@@ -23,12 +23,15 @@ Restart the game (or `/reload`). The addon only activates on a Mage.
 | Part | What you see |
 |---|---|
 | **Next-spell HUD** | A large icon for the spell to cast now, the next two beside it, the keybind on each icon, and a one-line reason ("Frozen - shatter", "Heating Up x3", "AoE - cone"). The icon turns red when the target is out of range. |
-| **Reaction icon** | To the left of the main icon: Counterspell when your target starts casting, Frost Nova when an enemy turns on you, Ice Barrier / Mana Shield, Evocation when you run dry. |
+| **Reaction icon** | To the left of the main icon: Counterspell when your target (or focus) starts casting, Frost Nova when an enemy turns on you, Ice Barrier / Mana Shield, Cold Snap, Polymorph, and a mana gem or Evocation when you run dry. |
 | **Low-health alert** | A pulsing red icon with your best defensive (Ice Barrier, Ice Block, Frost Nova, Mana Shield, Blink) when health drops under the threshold. A "LOW MANA" line does the same for mana. |
 | **Cooldown row** | Your main cooldowns with swipe timers; each one flashes and pops when it comes back. |
 | **Proc banners** | Animated banners for Missile Barrage, Fingers of Frost, Heating Up, Clearcasting, the shatter window after Frost Nova, level-ups and newly learned spells. |
 | **Mage XP bar** | Arcane (violet), Fire (orange) or Frost (blue) theme. Energy flows through the fill, motes drift off it (embers rise fast for Fire, frost falls slowly), an orb spins at the leading edge and "+XP" numbers float up on each gain. Outlined text shows level, XP and percent; a line above shows rested XP, quest XP waiting, XP per hour, time to level and kills to level. Hover for a full breakdown. |
-| **Reminders** | Out of combat, clickable buttons appear for missing Arcane Intellect, missing armor spell, no conjured water, no mana gem, and "drink" when mana is low. Clicking casts the spell. |
+| **Polymorph** | A countdown icon started by your own Polymorph cast, a banner before it ends, and a prompt to sheep the add when a second enemy joins. The game hides the debuff itself, so a sheep that breaks early is not detected. |
+| **Wand** | A "Wand finish" badge fades in when your target is nearly dead; a reminder appears if no wand is equipped. |
+| **Reminders** | Out of combat, clickable buttons appear for missing Arcane Intellect, missing armor spell, no conjured water or food, no mana gem, a curse on you, and Drink / Eat buttons that use your best conjured water and food. Info icons flag a missing wand and spells or ranks waiting at the trainer (hover for the list). |
+| **Trainer** | When a level unlocks new spells or ranks, a banner and a chat line list them. |
 | **Portal menu** | `/mage portals`: left-click a city to teleport, right-click for a portal. |
 | **Vendors** | Sells junk and repairs automatically. |
 
@@ -62,7 +65,8 @@ when you respec or swap dual spec. `/mage spec fire` forces one.
 /mage demo            play sample content in every section, for arranging the layout
 /mage portals         teleport / portal menu
 /mage spec auto|arcane|fire|frost
-/mage diag            print what the client lets the addon read
+/mage diag            show what the client lets the addon read, in a window you can copy from
+/mage profile         per-character settings: list, share, copy, reset
 /mage welcome         setup guide (opens by itself on first install and after updates)
 /mage on | off        enable / disable (then /reload)
 ```

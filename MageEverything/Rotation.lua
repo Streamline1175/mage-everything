@@ -260,6 +260,11 @@ local function reaction()
 	if r.counterspell and S.targetCasting and ME.Ready("Counterspell") then
 		return { key = "Counterspell", reason = "Interrupt!", glow = true }
 	end
+	-- A casting focus: Counterspell needs a focus macro to reach it.
+	if r.counterspell and S.focusCasting and ME.Ready("Counterspell")
+		and ME.Bool(UnitExists("focus")) and ME.Bool(UnitCanAttack("player", "focus")) then
+		return { key = "Counterspell", reason = "Interrupt your FOCUS", glow = true }
+	end
 	-- Ice Barrier also raises Frost damage, so keep it up from before the pull.
 	if r.shields and barrierDown() and (S.inCombat or ME.spec == "FROST") then
 		return { key = "IceBarrier", reason = ME.spec == "FROST" and "Shield + Frost damage" or "Shield" }
@@ -278,8 +283,25 @@ local function reaction()
 		and ME.OnCooldown("FrostNova") and (not ME.Known("IceBarrier") or ME.OnCooldown("IceBarrier")) then
 		return { key = "ColdSnap", reason = "Reset Frost cooldowns" }
 	end
-	if r.evocation and oom and ME.Ready("Evocation") then
-		return { key = "Evocation", reason = "Out of mana" }
+	-- Polymorph: re-sheep before the timer runs out, or sheep the add in the
+	-- first seconds after a second enemy joins.
+	if r.polymorph and ME.Ready("Polymorph") and not S.moving then
+		local left = ME.SheepRemaining()
+		if left > 0 and left < 6 and S.enemies >= 2 then
+			return { key = "Polymorph", reason = ("Re-sheep (%ds left)"):format(math.ceil(left)) }
+		end
+		if left == 0 and S.enemies >= 2 and S.enemies <= 3 and GetTime() - S.addsAt < 8 then
+			return { key = "Polymorph", reason = "Sheep the add (not your target)" }
+		end
+	end
+	if oom then
+		if r.gem then
+			local gem = ME.ReadyManaGem()
+			if gem then return { key = gem, reason = "Out of mana - use gem" } end
+		end
+		if r.evocation and ME.Ready("Evocation") then
+			return { key = "Evocation", reason = "Out of mana" }
+		end
 	end
 	return nil
 end

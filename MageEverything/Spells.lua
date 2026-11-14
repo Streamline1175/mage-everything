@@ -45,6 +45,9 @@ local DEFS = {
 	Blink           = { "Blink", 1953 },
 	Counterspell    = { "Counterspell", 2139 },
 	Polymorph       = { "Polymorph", 118 },
+	PolymorphPig    = { "Polymorph: Pig", 28272 },
+	PolymorphTurtle = { "Polymorph: Turtle", 28271 },
+	PolymorphCow    = { "Polymorph: Cow", 28270 },
 	RemoveCurse     = { "Remove Lesser Curse", 475 },
 	SlowFall        = { "Slow Fall", 130 },
 	-- Buffs
@@ -172,10 +175,29 @@ function Spells:Rebuild()
 	ME:Fire("SPELLS_UPDATED")
 end
 
+-- Highest-rank spell ID the spellbook holds under a (localised) name.
+function Spells.BookID(name)
+	local hit = book[name]
+	return hit and hit.id or nil
+end
+
+-- Entries may also be items, written "item:<id>" (the mana gem).
+local function itemID(key)
+	return type(key) == "string" and tonumber(key:match("^item:(%d+)$")) or nil
+end
+ME.ItemID = itemID
+
 -- Public accessors ---------------------------------------------------------
 function ME.Spell(key) return resolved[key] end
 function ME.Known(key) return resolved[key] ~= nil end
-function ME.SpellLabel(key) return localName[key] or (DEFS[key] and DEFS[key][1]) or key end
+function ME.SpellLabel(key)
+	local item = itemID(key)
+	if item then
+		local n = C_Item and C_Item.GetItemNameByID and ME.Try(C_Item.GetItemNameByID, item)
+		return type(n) == "string" and n or "Item"
+	end
+	return localName[key] or (DEFS[key] and DEFS[key][1]) or key
+end
 
 -- Maps any spell ID (any rank) back to a catalogue key via its name.
 function ME.KeyForSpell(spellID)
@@ -185,6 +207,11 @@ function ME.KeyForSpell(spellID)
 end
 
 function ME.SpellIcon(key)
+	local item = itemID(key)
+	if item then
+		local tex = C_Item and C_Item.GetItemIconByID and ME.Try(C_Item.GetItemIconByID, item)
+		return tex or "Interface\\Icons\\INV_Misc_Gem_Ruby_01"
+	end
 	local id = resolved[key]
 	if not id then
 		local def = DEFS[key]

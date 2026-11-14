@@ -32,19 +32,51 @@ local function manaFraction()
 end
 
 -- Returns a list of { key, label, unit, clickable }.
+-- Conjured food, one item per Conjure Food rank.
+local FOOD = { 5349, 1113, 1114, 1487, 8075, 8076, 22895 }
+
+-- Highest-rank item from a list that is in the bags.
+local function bestItem(ids)
+	for i = #ids, 1, -1 do
+		if itemCount(ids[i]) > 0 then return ids[i] end
+	end
+end
+
+local function healthFraction()
+	local cur, max = ME.Plain(UnitHealth("player")), ME.Plain(UnitHealthMax("player"))
+	if cur and max and max > 0 then return cur / max end
+end
+
+-- A curse on the player (auras are readable out of combat).
+local function cursed()
+	if not (C_UnitAuras and C_UnitAuras.GetAuraDataByIndex) then return false end
+	for i = 1, 40 do
+		local aura = ME.Try(C_UnitAuras.GetAuraDataByIndex, "player", i, "HARMFUL")
+		if type(aura) ~= "table" then break end
+		if ME.Plain(aura.dispelName) == "Curse" then return true end
+	end
+	return false
+end
+
+-- Returns a list of reminders. Each has: key (spell key for the icon),
+-- label, and one of: nothing (click casts the spell), item = id (click uses
+-- the item), info = true (not clickable). `tip` adds tooltip lines.
 local function evaluate()
 	local db = ME.db.reminders
 	local list = {}
 	if not db.enabled then return list end
 	if ME.demo then
-		-- Samples only: marked as info so clicking them casts nothing.
+		-- Samples only: marked as info so clicking them does nothing.
 		for _, s in ipairs({ { "ArcaneIntellect", "Intellect" }, { "IceArmor", "Armor" }, { "ConjureWater", "Water" },
-			{ "ConjureManaRuby", "Mana gem" } }) do
-			list[#list + 1] = { key = s[1], label = s[2], info = true }
+			{ "ConjureManaRuby", "Mana gem" }, { "ConjureFood", "Eat" }, { "Polymorph", "Trainer (3)", "Interface\\Icons\\INV_Misc_Book_09" } }) do
+			list[#list + 1] = { key = s[1], label = s[2], icon = s[3], info = true }
 		end
 		return list
 	end
 
+	if db.curse and ME.Known("RemoveCurse") and cursed() then
+		list[#list + 1] = { key = "RemoveCurse", label = "Curse", unit = "player" }
+	end
 	if db.intellect and ME.HasBuff("ArcaneIntellect") == false and ME.HasBuff("ArcaneBrilliance") == false then
 		local key = ME.FirstKnown("ArcaneIntellect")
 		if key then list[#list + 1] = { key = key, label = "Intellect", unit = "player" } end
@@ -54,8 +86,11 @@ local function evaluate()
 		local key = ME.FirstKnown("IceArmor", "FrostArmor", "MageArmor")
 		if key then list[#list + 1] = { key = key, label = "Armor" } end
 	end
-	if db.conjure and ME.Known("ConjureWater") then
-		if waterCount() == 0 then list[#list + 1] = { key = "ConjureWater", label = "Water" } end
+
+	local water, food = bestItem(WATER), bestItem(FOOD)
+	if db.conjure then
+		if not water and ME.Known("ConjureWater") then list[#list + 1] = { key = "ConjureWater", label = "Water" } end
+		if not food and ME.Known("ConjureFood") then list[#list + 1] = { key = "ConjureFood", label = "Food" } end
 	end
 	if db.gem then
 		local have = false
@@ -65,10 +100,37 @@ local function evaluate()
 		local key = ME.FirstKnown(unpack(GEM_SPELLS))
 		if key and not have then list[#list + 1] = { key = key, label = "Mana gem" } end
 	end
-	if db.drink then
+
+	-- Drink / eat: click to use the best conjured water or food.
+	local mounted = ME.Bool(IsMounted())
+	if db.drink and water and not mounted then
 		local f = manaFraction()
-		if f and f < db.drinkAt and not ME.Bool(IsMounted()) then
-			list[#list + 1] = { key = "ConjureWater", label = "Drink", info = true, icon = "Interface\\Icons\\INV_Drink_07" }
+		if f and f < db.drinkAt then
+			list[#list + 1] = { key = "ConjureWater", label = "Drink", item = water, tip = { "Click to drink." } }
+		end
+	end
+	if db.eat and food and not mounted then
+		local f = healthFraction()
+		if f and f < db.eatAt then
+			list[#list + 1] = { key = "ConjureFood", label = "Eat", item = food, tip = { "Click to eat." } }
+		end
+	end
+
+	if db.wand and (UnitLevel("player") or 1) >= 5 and not ME.HasWand() then
+		list[#list + 1] = { key = "Shoot", label = "No wand", info = true, icon = "Interface\\Icons\\INV_Wand_01",
+			tip = { "No wand equipped.", "A wand finishes low enemies for free and keeps you fighting when out of mana." } }
+	end
+
+	if db.trainer and ME.Training then
+		local missing = ME.Training:Missing()
+		if #missing > 0 then
+			local tip = { "Available at the mage trainer:" }
+			for i = 1, math.min(#missing, 12) do
+				tip[#tip + 1] = (missing[i].isNew and "|cff55ff55New:|r " or "") .. ME.Training:Describe(missing[i])
+			end
+			if #missing > 12 then tip[#tip + 1] = ("...and %d more"):format(#missing - 12) end
+			list[#list + 1] = { key = "Polymorph", label = ("Trainer (%d)"):format(#missing), info = true,
+				icon = "Interface\\Icons\\INV_Misc_Book_09", tip = tip }
 		end
 	end
 	return list
@@ -93,9 +155,14 @@ local function acquire(i)
 	b.label:SetPoint("TOP", b, "BOTTOM", 0, -2)
 	b:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
-		GameTooltip:AddLine(self.tip or "")
-		GameTooltip:AddLine(ME.demo and "Sample reminder (demo mode)."
-			or (self.info and "Sit and drink to recover mana." or "Click to cast."), 1, 1, 1)
+		GameTooltip:AddLine(self.title or "")
+		if ME.demo then
+			GameTooltip:AddLine("Sample reminder (demo mode).", 1, 1, 1)
+		elseif self.tipLines then
+			for _, line in ipairs(self.tipLines) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+		else
+			GameTooltip:AddLine("Click to cast.", 1, 1, 1)
+		end
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -111,11 +178,19 @@ function Rem:Update()
 	for i, item in ipairs(list) do
 		local b = acquire(i)
 		b.info = item.info
-		b.tip = ME.SpellLabel(item.key)
-		b.tex:SetTexture(item.icon or ME.SpellIcon(item.key))
+		b.tipLines = item.tip
+		b.title = item.item and item.label or (item.info and item.label or ME.SpellLabel(item.key))
+		b.tex:SetTexture(item.icon or (item.item and ME.SpellIcon("item:" .. item.item)) or ME.SpellIcon(item.key))
 		b.label:SetText(item.label)
+		-- Secure attributes: exactly one action (spell, item or none).
+		b:SetAttribute("spell", nil)
+		b:SetAttribute("item", nil)
+		b:SetAttribute("unit", nil)
 		if item.info then
 			b:SetAttribute("type", nil)
+		elseif item.item then
+			b:SetAttribute("type", "item")
+			b:SetAttribute("item", "item:" .. item.item)
 		else
 			b:SetAttribute("type", "spell")
 			b:SetAttribute("spell", ME.Spell(item.key))
@@ -164,6 +239,8 @@ function Rem:OnLogin()
 			Rem:Update()
 		end
 	end)
-	C_Timer.NewTicker(3, queue) -- mana level for the drink reminder
+	ME:On("PLAYER_EQUIPMENT_CHANGED", queue)
+	ME:On("PLAYER_LEVEL_UP", queue)
+	C_Timer.NewTicker(3, queue) -- health / mana levels for the eat and drink buttons
 	queue()
 end

@@ -61,6 +61,11 @@ local function buildPanel()
 	check(db.reaction, "nova", "Reaction: Frost Nova", "When an enemy has turned on you.")
 	check(db.reaction, "shields", "Reaction: Ice Barrier / Mana Shield", nil)
 	check(db.reaction, "evocation", "Reaction: Evocation", "When the filler spell is unaffordable.")
+	check(db.reaction, "gem", "Reaction: mana gem", "Suggested before Evocation when out of mana.")
+	check(db.reaction, "polymorph", "Reaction: Polymorph", "Sheep the add when a second enemy joins, and re-sheep before the timer ends.")
+	check(db.hud, "sheepTimer", "Polymorph timer", "Countdown from your own Polymorph cast. An early break is not detected.")
+	check(db.hud, "wandFinish", "Wand finisher badge", "Shows when your target is nearly dead, to save mana on the kill.")
+	slider(db.hud, "wandFinishAt", "Wand finisher threshold", "Target health at which the wand badge appears.", 0.05, 0.5, 0.05, "%.2f")
 
 	check(db.panic, "enabled", "Low health and low mana alerts", "Shown by the client from thresholds, even while values are hidden.")
 	slider(db.panic, "health", "Low health threshold", nil, 0.1, 0.7, 0.05, "%.2f")
@@ -85,9 +90,13 @@ local function buildPanel()
 	check(db.reminders, "enabled", "Clickable reminders", "Out-of-combat buttons for missing buffs and supplies.")
 	check(db.reminders, "intellect", "Remind: Arcane Intellect", nil)
 	check(db.reminders, "armor", "Remind: armor spell", nil)
-	check(db.reminders, "conjure", "Remind: conjure water", nil)
+	check(db.reminders, "conjure", "Remind: conjure water and food", nil)
 	check(db.reminders, "gem", "Remind: mana gem", nil)
-	check(db.reminders, "drink", "Remind: drink when low on mana", nil)
+	check(db.reminders, "drink", "Button: drink when low on mana", "Uses your best conjured water.")
+	check(db.reminders, "eat", "Button: eat when low on health", "Uses your best conjured food.")
+	check(db.reminders, "wand", "Remind: no wand equipped", nil)
+	check(db.reminders, "curse", "Button: Remove Lesser Curse", "Out of combat only; curses are hidden from addons during a fight.")
+	check(db.reminders, "trainer", "Remind: new spells at the trainer", "Also announces them when you level up.")
 
 	check(db.qol, "sellJunk", "Sell junk at vendors", nil)
 	check(db.qol, "autoRepair", "Repair at vendors", nil)
@@ -116,9 +125,23 @@ local function yn(v)
 	return v and "|cff55ff55yes|r" or "|cffffaa33no|r"
 end
 
+-- Runs kept for the copy window (newest last).
+local diagRuns = {}
+
+local function stripColors(str)
+	return (str:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
 function Options:Diagnose()
-	local p = print
-	p("|cff69ccf0Mage Everything diagnostics|r")
+	local lines = {}
+	local function p(...)
+		local parts = {}
+		for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
+		local line = table.concat(parts, " ")
+		lines[#lines + 1] = line
+		print(line)
+	end
+	p("Mage Everything diagnostics")
 	p("  client:", (select(4, GetBuildInfo())), "project:", tostring(WOW_PROJECT_ID),
 		"Forever:", yn(WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT))
 	p("  spec:", ME.spec, ("(Arcane %d / Fire %d / Frost %d, detected: %s)"):format(
@@ -156,7 +179,62 @@ function Options:Diagnose()
 	for k in pairs(ME.state.overlay) do overlays[#overlays + 1] = k end
 	p("  active proc glows:", #overlays > 0 and table.concat(overlays, ", ") or "none")
 	if ME.lastError then p("  last error:", ME.lastError) end
+	p("  profile:", tostring(ME.profileName), "version:", ME.version)
+
+	lines[1] = ("== %s, %s =="):format(ME.state.inCombat and "IN COMBAT" or "out of combat", date and date("%H:%M:%S") or "")
+	diagRuns[#diagRuns + 1] = stripColors(table.concat(lines, "\n"))
+	if #diagRuns > 4 then table.remove(diagRuns, 1) end
+	-- Kept in the saved-variables file too (written on logout or /reload).
+	ME.root.lastDiag = table.concat(diagRuns, "\n\n")
+	if ME.state.inCombat then
+		ME:Print("Diagnostics saved. Run /mage diag again after the fight to open the copy window with both runs.")
+	else
+		Options:ShowCopy(ME.root.lastDiag)
+	end
 end
+
+-- Window with selectable text: Ctrl+A, Ctrl+C to copy.
+local copyFrame
+function Options:ShowCopy(str)
+	if not copyFrame then
+		local f = CreateFrame("Frame", "MageEverythingCopy", UIParent)
+		f:SetSize(640, 420)
+		f:SetPoint("CENTER")
+		f:SetFrameStrata("DIALOG")
+		f:SetMovable(true)
+		f:EnableMouse(true)
+		f:RegisterForDrag("LeftButton")
+		f:SetScript("OnDragStart", f.StartMoving)
+		f:SetScript("OnDragStop", f.StopMovingOrSizing)
+		if UISpecialFrames then table.insert(UISpecialFrames, "MageEverythingCopy") end
+		local bg = f:CreateTexture(nil, "BACKGROUND")
+		bg:SetAllPoints()
+		bg:SetColorTexture(0.035, 0.04, 0.085, 0.97)
+		ME.FX.Border(f, 1, 0.41, 0.8, 0.94, 1)
+		local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+		title:SetPoint("TOPLEFT", 14, -12)
+		title:SetText("Diagnostics - press Ctrl+A then Ctrl+C to copy")
+		local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+		close:SetPoint("TOPRIGHT", 2, 2)
+		local scroll = CreateFrame("ScrollFrame", "MageEverythingCopyScroll", f, "UIPanelScrollFrameTemplate")
+		scroll:SetPoint("TOPLEFT", 14, -40)
+		scroll:SetPoint("BOTTOMRIGHT", -34, 14)
+		local edit = CreateFrame("EditBox", nil, scroll)
+		edit:SetMultiLine(true)
+		edit:SetAutoFocus(false)
+		edit:SetFontObject("ChatFontNormal")
+		edit:SetWidth(580)
+		edit:SetScript("OnEscapePressed", function() f:Hide() end)
+		scroll:SetScrollChild(edit)
+		f.edit = edit
+		copyFrame = f
+	end
+	copyFrame.edit:SetText(str or "")
+	copyFrame:Show()
+	copyFrame.edit:SetFocus()
+	copyFrame.edit:HighlightText()
+end
+
 
 ---------------------------------------------------------------------------
 -- Slash commands
@@ -167,7 +245,8 @@ local function help()
 	print("  /mage unlock | lock | reset - move frames")
 	print("  /mage portals - teleport and portal menu")
 	print("  /mage spec auto|arcane|fire|frost - override spec detection")
-	print("  /mage diag - show what the client lets the addon read")
+	print("  /mage diag - show what the client lets the addon read (opens a window to copy from)")
+	print("  /mage profile - per-character settings: list, share, copy, reset")
 	print("  /mage demo - play sample content in every section, for arranging the layout")
 	print("  /mage welcome - setup guide")
 	print("  /mage on | off - enable or disable the addon (then /reload)")
@@ -177,7 +256,7 @@ local function slash(msg)
 	msg = (msg or ""):lower():match("^%s*(.-)%s*$")
 	local cmd, arg = msg:match("^(%S+)%s*(.*)$")
 	if msg == "on" or msg == "off" then
-		MageEverythingDB.enabled = (msg == "on")
+		ME.root.enabled = (msg == "on")
 		ME:Print("Addon " .. (msg == "on" and "enabled" or "disabled") .. ". /reload to apply.")
 		return
 	end
@@ -201,6 +280,8 @@ local function slash(msg)
 		ME.Welcome:Toggle()
 	elseif msg == "diag" or msg == "debug" then
 		Options:Diagnose()
+	elseif cmd == "profile" then
+		Options:Profile(arg)
 	elseif cmd == "spec" then
 		local v = arg:upper()
 		if v == "AUTO" or v == "ARCANE" or v == "FIRE" or v == "FROST" then
@@ -212,6 +293,38 @@ local function slash(msg)
 		end
 	else
 		help()
+	end
+end
+
+-- /mage profile [use|copy <name>] [reset]
+function Options:Profile(arg)
+	local sub, name = (arg or ""):match("^(%S*)%s*(.-)$")
+	local root = ME.root
+	if sub == "use" or sub == "copy" then
+		local found = ME:FindProfile(name)
+		if not found then
+			ME:Print("No profile called '" .. name .. "'. Type /mage profile to list them.")
+		elseif found == ME.profileName then
+			ME:Print("That is already this character's profile.")
+		elseif sub == "use" then
+			root.chars[ME.charKey] = found
+			ME:Print("This character now shares the profile '" .. found .. "'. /reload to apply.")
+		else
+			root.profiles[ME.profileName] = CopyTable(root.profiles[found])
+			ME:Print("Copied '" .. found .. "' into this character's profile. /reload to apply.")
+		end
+	elseif sub == "reset" then
+		root.profiles[ME.profileName] = {}
+		ME:Print("Profile reset to defaults. /reload to apply.")
+	else
+		ME:Print("profiles (this character uses |cff69ccf0" .. tostring(ME.profileName) .. "|r):")
+		local names = {}
+		for n in pairs(root.profiles) do names[#names + 1] = n end
+		table.sort(names)
+		for _, n in ipairs(names) do print("  " .. n) end
+		print("  /mage profile use <name> - share that profile with this character")
+		print("  /mage profile copy <name> - copy its settings into this character's profile")
+		print("  /mage profile reset - back to defaults")
 	end
 end
 

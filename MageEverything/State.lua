@@ -16,7 +16,7 @@ local S = {
 	targetCasting = false, overlay = {}, lastCast = nil, lastCastTime = 0,
 	abStacks = 0, abExpire = 0, huStacks = 0, huExpire = 0,
 	scorchStacks = 0, scorchExpire = 0, frozenExpire = 0, frozenHits = 0,
-	wcStacks = 0, wcExpire = 0,
+	wcStacks = 0, wcExpire = 0, sheepStart = 0, sheepDur = 0, focusCasting = false, addsAt = 0,
 }
 ME.state = S
 
@@ -225,6 +225,43 @@ function ME.WintersChill()
 end
 
 ---------------------------------------------------------------------------
+-- Polymorph, wand, mana gem
+---------------------------------------------------------------------------
+local SHEEP_SECONDS = { [118] = 20, [12824] = 30, [12825] = 40, [12826] = 50 }
+
+-- Seconds left on the player's last Polymorph (a timer from the cast: the
+-- debuff itself is hidden, so an early break cannot be seen).
+function ME.SheepRemaining()
+	return math.max(0, S.sheepStart + S.sheepDur - now())
+end
+
+local rangedSlot
+function ME.HasWand()
+	if rangedSlot == nil then
+		rangedSlot = (GetInventorySlotInfo and Try(GetInventorySlotInfo, "RANGEDSLOT")) or 18
+	end
+	return GetInventoryItemID("player", rangedSlot) ~= nil
+end
+
+local GEMS = { 8008, 8007, 5513, 5514 } -- Mana Ruby, Citrine, Jade, Agate
+-- Best mana gem in the bags that is off cooldown, as an "item:<id>" key.
+function ME.ReadyManaGem()
+	if not (C_Item and C_Item.GetItemCount) then return nil end
+	for _, id in ipairs(GEMS) do
+		local n = Plain(Try(C_Item.GetItemCount, id), 0) or 0
+		if n > 0 then
+			local start, dur = Try(C_Item.GetItemCooldown, id)
+			start, dur = Plain(start), Plain(dur)
+			-- Unreadable cooldown: assume ready rather than hide the option.
+			if not (start and dur and dur > 1.6 and start + dur > now()) then
+				return "item:" .. id
+			end
+		end
+	end
+	return nil
+end
+
+---------------------------------------------------------------------------
 -- World scan (target, enemy count, threat, movement)
 ---------------------------------------------------------------------------
 local function hostile(unit)
@@ -265,6 +302,7 @@ function State:Refresh(force)
 	if S.hasTarget and not targetCounted and (n == 0 or S.inCombat) then
 		n = math.max(n, 1)
 	end
+	if n >= 2 and S.enemies < 2 then S.addsAt = t end -- a second enemy just joined
 	S.enemies = n
 
 	-- Announce procs as they appear (drives the banners).
@@ -305,6 +343,11 @@ local function onPlayerCast(key)
 	local b = BUFF_MEMORY[key]
 	if b then ME.Remember(b[1], b[2]) end
 
+	if key:find("^Polymorph") then
+		local id = ME.Spell(key)
+		S.sheepStart, S.sheepDur = t, (id and SHEEP_SECONDS[id]) or 50
+		ME:Fire("SHEEP", S.sheepDur)
+	end
 	if key == "FrostNova" then
 		S.frozenExpire, S.frozenHits = t + 8, 2
 		ME:Fire("MEM_PROC", "Frozen")
@@ -350,7 +393,7 @@ function State:OnLogin()
 	end)
 	ME:On("PLAYER_REGEN_ENABLED", function()
 		S.inCombat = false
-		S.targetCasting = false
+		S.targetCasting, S.focusCasting = false, false
 		ME:Fire("COMBAT", false)
 	end)
 
@@ -368,6 +411,8 @@ function State:OnLogin()
 			if not S.channeling then S.casting = nil end
 		elseif unit == "target" then
 			S.targetCasting = false
+		elseif unit == "focus" then
+			S.focusCasting = false
 		end
 	end)
 	ME:On("UNIT_SPELLCAST_START", function(unit, _, spellID)
@@ -375,14 +420,19 @@ function State:OnLogin()
 			S.casting = ME.KeyForSpell(spellID) or "?"
 		elseif unit == "target" then
 			S.targetCasting = true
+		elseif unit == "focus" then
+			S.focusCasting = true
 		end
 	end)
+	ME:On("PLAYER_FOCUS_CHANGED", function() S.focusCasting = false end)
 	ME:On("UNIT_SPELLCAST_CHANNEL_START", function(unit, _, spellID)
 		if unit == "player" then
 			S.channeling = ME.KeyForSpell(spellID) or "?"
 			S.casting = S.channeling
 		elseif unit == "target" then
 			S.targetCasting = true
+		elseif unit == "focus" then
+			S.focusCasting = true
 		end
 	end)
 	local function stop(unit)
@@ -390,6 +440,8 @@ function State:OnLogin()
 			S.casting, S.channeling = nil, nil
 		elseif unit == "target" then
 			S.targetCasting = false
+		elseif unit == "focus" then
+			S.focusCasting = false
 		end
 	end
 	for _, e in ipairs({ "UNIT_SPELLCAST_STOP", "UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_INTERRUPTED",
