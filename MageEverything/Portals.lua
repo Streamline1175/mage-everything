@@ -99,6 +99,14 @@ function Portals:OnLogin()
 
 	-- Close automatically when combat starts (fires just before lockdown).
 	ME:On("PLAYER_REGEN_DISABLED", function() root:Hide() end)
+	ME:Listen("DEMO", function(on)
+		if on then
+			Portals:Rebuild()
+			root:Show()
+		else
+			root:Hide()
+		end
+	end)
 	ME:Listen("SPELLS_UPDATED", function()
 		if root:IsShown() then Portals:Rebuild() end
 	end)

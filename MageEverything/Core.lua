@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.1.1"
+ME.version = "1.2.0"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ ME.defaults = {
 	cooldowns = { enabled = true, scale = 1.0 },
 	alerts = { enabled = true, sound = true, scale = 1.0 },
 	xp = {
-		enabled = true, hideBlizzard = true, width = 520, height = 16, showText = true,
+		enabled = true, hideBlizzard = true, width = 520, height = 20, showText = true, showDetail = true,
 		showQuestXP = true, effects = true,
 	},
 	reminders = { enabled = true, intellect = true, armor = true, conjure = true, gem = true, drink = true, drinkAt = 0.45 },
@@ -202,12 +202,18 @@ function ME:MakeMovable(f, key, label, point, x, y, shiftDrag)
 	h:SetFrameLevel(100)
 	h:EnableMouse(true)
 	h:RegisterForDrag("LeftButton")
-	local bg = h:CreateTexture(nil, "OVERLAY")
+	-- Light tint and an outline, so the content underneath stays visible.
+	local bg = h:CreateTexture(nil, "BACKGROUND")
 	bg:SetAllPoints()
-	bg:SetColorTexture(0.2, 0.7, 1, 0.45)
+	bg:SetColorTexture(0.2, 0.7, 1, 0.16)
+	if ME.FX then ME.FX.Border(h, 1, 0.3, 0.8, 1, 0.9) end
+	local tab = h:CreateTexture(nil, "ARTWORK")
+	tab:SetColorTexture(0.05, 0.25, 0.45, 0.95)
 	local txt = h:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	txt:SetPoint("CENTER")
-	txt:SetText((label or key) .. " - drag me")
+	txt:SetPoint("BOTTOMLEFT", h, "TOPLEFT", 4, 3)
+	txt:SetText((label or key) .. " - drag")
+	tab:SetPoint("TOPLEFT", txt, "TOPLEFT", -4, 2)
+	tab:SetPoint("BOTTOMRIGHT", txt, "BOTTOMRIGHT", 4, -2)
 	h:SetScript("OnDragStart", function() f:StartMoving() end)
 	h:SetScript("OnDragStop", function() savePosition(f) end)
 	h:SetScript("OnMouseUp", function() savePosition(f) end)

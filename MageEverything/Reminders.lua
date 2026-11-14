@@ -36,6 +36,14 @@ local function evaluate()
 	local db = ME.db.reminders
 	local list = {}
 	if not db.enabled then return list end
+	if ME.demo then
+		-- Samples only: marked as info so clicking them casts nothing.
+		for _, s in ipairs({ { "ArcaneIntellect", "Intellect" }, { "IceArmor", "Armor" }, { "ConjureWater", "Water" },
+			{ "ConjureManaRuby", "Mana gem" } }) do
+			list[#list + 1] = { key = s[1], label = s[2], info = true }
+		end
+		return list
+	end
 
 	if db.intellect and ME.HasBuff("ArcaneIntellect") == false and ME.HasBuff("ArcaneBrilliance") == false then
 		local key = ME.FirstKnown("ArcaneIntellect")
@@ -86,7 +94,8 @@ local function acquire(i)
 	b:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
 		GameTooltip:AddLine(self.tip or "")
-		GameTooltip:AddLine(self.info and "Sit and drink to recover mana." or "Click to cast.", 1, 1, 1)
+		GameTooltip:AddLine(ME.demo and "Sample reminder (demo mode)."
+			or (self.info and "Sit and drink to recover mana." or "Click to cast."), 1, 1, 1)
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -148,6 +157,13 @@ function Rem:OnLogin()
 	ME:On("PLAYER_ALIVE", queue)
 	ME:On("PLAYER_UNGHOST", queue)
 	ME:Listen("SPELLS_UPDATED", queue)
+	ME:Listen("DEMO", function(on, fromCombat)
+		if fromCombat then
+			for _, b in ipairs(buttons) do b:Hide() end
+		else
+			Rem:Update()
+		end
+	end)
 	C_Timer.NewTicker(3, queue) -- mana level for the drink reminder
 	queue()
 end

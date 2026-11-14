@@ -39,7 +39,7 @@ function CDs:Layout()
 	local n = 0
 	local seenShared = false
 	for _, key in ipairs(TRACKED) do
-		local show = ME.Known(key)
+		local show = ME.Known(key) or ME.demo
 		-- Fire Blast and Ice Lance share one cooldown: show a single icon.
 		if show and (key == "FireBlast" or key == "IceLance") then
 			if seenShared then show = false end
@@ -63,7 +63,7 @@ function CDs:Layout()
 end
 
 function CDs:Update()
-	if not root or not root:IsShown() then return end
+	if not root or not root:IsShown() or ME.demo then return end
 	local theme = FX.Theme()
 	for i = 1, root.count or 0 do
 		local icon = icons[i]
@@ -110,6 +110,24 @@ function CDs:OnLogin()
 	self:Layout()
 
 	ME:Listen("SPELLS_UPDATED", function() CDs:Layout() end)
+	-- Demo: every icon, with staggered sample cooldowns on every other one.
+	ME:Listen("DEMO", function(on)
+		CDs:Layout()
+		if not on then return end
+		for i = 1, root.count or 0 do
+			local icon = icons[i]
+			local running = (i % 2 == 0)
+			icon.tex:SetDesaturated(running)
+			icon:SetAlpha(running and 0.75 or 1)
+			if running then
+				pcall(icon.cd.SetCooldown, icon.cd, GetTime() - i, 20 + i * 4)
+			else
+				pcall(icon.cd.Clear, icon.cd)
+				icon.pop:Stop(); icon.pop:Play()
+				icon.flash:Stop(); icon.flash:Play()
+			end
+		end
+	end)
 	ME:On("SPELL_UPDATE_COOLDOWN", function() CDs:Update() end)
 	ME:On("SPELL_UPDATE_USABLE", function() CDs:Update() end)
 	-- Catch cooldowns ending between events.

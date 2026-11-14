@@ -242,6 +242,11 @@ local function updateVitals()
 	end
 
 	local p = ME.db.panic
+	if ME.demo then
+		panicFrame:SetAlpha(1)
+		lowMana:SetAlpha(1)
+		return
+	end
 	if not p.enabled or not S.inCombat then
 		panicFrame:SetAlpha(0)
 		lowMana:SetAlpha(0)
@@ -274,10 +279,11 @@ local function render()
 		return
 	end
 
-	local r = ME.Rotation:Build()
+	local demo = ME.demo
+	local r = demo and ME.Demo:HUDResult() or ME.Rotation:Build()
 	local q = r.queue
-	local show = #q > 0 and (S.hasTarget or not db.onlyWithTarget)
-	root:SetAlpha(S.inCombat and 1 or db.alphaOOC)
+	local show = #q > 0 and (demo or S.hasTarget or not db.onlyWithTarget)
+	root:SetAlpha((S.inCombat or demo) and 1 or db.alphaOOC)
 
 	setSlot(main, show and q[1] or nil, true)
 	for i = 1, 2 do

@@ -10,6 +10,12 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.2.0"] = {
+		"Demo mode: /mage demo plays sample content in every section so you can arrange the layout.",
+		"Experience bar redesign: outlined text on a dark plate, with details on their own line.",
+		"New bar effects: flowing energy, drifting motes, a spinning orb, breathing glow and floating +XP.",
+		"Drag handles are now see-through outlines, so you can see what you are moving.",
+	},
 	["1.1.1"] = {
 		"Frames can now be moved from the game's Edit Mode: open it and drag the blue boxes.",
 		"Shift-drag the XP bar to move it at any time.",
@@ -248,9 +254,14 @@ local function buildPages()
 		ME:SetLocked(false)
 	end)
 	move:SetPoint("BOTTOMLEFT", 0, 4)
-	local moveHint = text(p, "GameFontDisableSmall", "Closes this guide and unlocks everything for dragging. Type /mage lock when done. Edit Mode shows the same handles.")
-	moveHint:SetPoint("LEFT", move, "RIGHT", 10, 0)
-	moveHint:SetWidth(360)
+	local demoBtn = button(p, "Demo mode", 110, function()
+		Welcome:Close()
+		ME.Demo:Start()
+	end)
+	demoBtn:SetPoint("LEFT", move, "RIGHT", 8, 0)
+	local moveHint = text(p, "GameFontDisableSmall", "Demo mode plays sample content in every section while you drag things into place.")
+	moveHint:SetPoint("LEFT", demoBtn, "RIGHT", 10, 0)
+	moveHint:SetWidth(250)
 	p.OnShow = function(self)
 		for _, c in ipairs(self.checks) do c:Refresh() end
 	end
@@ -261,6 +272,7 @@ local function buildPages()
 		"|cff69ccf0Commands|r",
 		"  /mage                   options",
 		"  /mage unlock  |  lock   move the frames (or open Edit Mode; Shift-drag the XP bar)",
+		"  /mage demo              sample content everywhere, for arranging the layout",
 		"  /mage portals           teleport and portal menu",
 		"  /mage spec fire         force a rotation (auto, arcane, fire, frost)",
 		"  /mage diag              show what the game lets the addon read",

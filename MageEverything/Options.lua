@@ -76,6 +76,7 @@ local function buildPanel()
 	check(db.xp, "enabled", "Mage experience bar", "Spec-themed XP bar.")
 	check(db.xp, "hideBlizzard", "Hide the default XP bar (needs /reload)", "Also hides the default reputation bar.")
 	check(db.xp, "showText", "XP bar text", nil)
+	check(db.xp, "showDetail", "XP bar details line", "Rested, XP per hour, time to level and kills, above the bar.")
 	check(db.xp, "showQuestXP", "Show XP from completed quests", "Gold overlay for quests ready to hand in.")
 	check(db.xp, "effects", "XP bar animations", nil)
 	slider(db.xp, "width", "XP bar width", nil, 200, 1200, 10, "%d")
@@ -167,6 +168,7 @@ local function help()
 	print("  /mage portals - teleport and portal menu")
 	print("  /mage spec auto|arcane|fire|frost - override spec detection")
 	print("  /mage diag - show what the client lets the addon read")
+	print("  /mage demo - play sample content in every section, for arranging the layout")
 	print("  /mage welcome - setup guide")
 	print("  /mage on | off - enable or disable the addon (then /reload)")
 end
@@ -193,6 +195,8 @@ local function slash(msg)
 		ME:ResetPositions()
 	elseif msg == "portals" or msg == "portal" then
 		ME.Portals:Toggle()
+	elseif msg == "demo" or msg == "test" then
+		ME.Demo:Toggle()
 	elseif msg == "welcome" or msg == "guide" or msg == "setup" then
 		ME.Welcome:Toggle()
 	elseif msg == "diag" or msg == "debug" then

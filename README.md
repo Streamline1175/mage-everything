@@ -27,7 +27,7 @@ Restart the game (or `/reload`). The addon only activates on a Mage.
 | **Low-health alert** | A pulsing red icon with your best defensive (Ice Barrier, Ice Block, Frost Nova, Mana Shield, Blink) when health drops under the threshold. A "LOW MANA" line does the same for mana. |
 | **Cooldown row** | Your main cooldowns with swipe timers; each one flashes and pops when it comes back. |
 | **Proc banners** | Animated banners for Missile Barrage, Fingers of Frost, Heating Up, Clearcasting, the shatter window after Frost Nova, level-ups and newly learned spells. |
-| **Mage XP bar** | Arcane (violet), Fire (orange) or Frost (blue) theme with its own animation speed. Shows rested XP, XP waiting in completed quests, XP per hour, time to level and kills to level. Hover for a full breakdown. |
+| **Mage XP bar** | Arcane (violet), Fire (orange) or Frost (blue) theme. Energy flows through the fill, motes drift off it (embers rise fast for Fire, frost falls slowly), an orb spins at the leading edge and "+XP" numbers float up on each gain. Outlined text shows level, XP and percent; a line above shows rested XP, quest XP waiting, XP per hour, time to level and kills to level. Hover for a full breakdown. |
 | **Reminders** | Out of combat, clickable buttons appear for missing Arcane Intellect, missing armor spell, no conjured water, no mana gem, and "drink" when mana is low. Clicking casts the spell. |
 | **Portal menu** | `/mage portals`: left-click a city to teleport, right-click for a portal. |
 | **Vendors** | Sells junk and repairs automatically. |
@@ -59,6 +59,7 @@ when you respec or swap dual spec. `/mage spec fire` forces one.
                       - opening the game's Edit Mode shows the same blue boxes
                       - Shift-drag the XP bar to move it at any time
 /mage reset           put frames back
+/mage demo            play sample content in every section, for arranging the layout
 /mage portals         teleport / portal menu
 /mage spec auto|arcane|fire|frost
 /mage diag            print what the client lets the addon read
