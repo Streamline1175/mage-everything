@@ -136,6 +136,8 @@ local function build()
 	restedBar = layer(1, 0.35)
 	questBar = layer(2, 0.55)
 	xpBar = layer(3, 1)
+	-- A flat, bright fill texture so the spec gradient is not dulled.
+	xpBar:SetStatusBarTexture("Interface\\RaidFrame\\Raid-Bar-Hp-Fill")
 	local fill = xpBar:GetStatusBarTexture()
 
 	-- Energy flowing through the fill: soft bands of light travel left to
@@ -212,13 +214,13 @@ local function build()
 	textFrame:SetFrameLevel(root:GetFrameLevel() + 12)
 	plateL = textFrame:CreateTexture(nil, "ARTWORK")
 	plateL:SetTexture(FX.WHITE)
-	plateL:SetGradient("HORIZONTAL", CreateColor(0, 0, 0, 0), CreateColor(0, 0, 0, 0.62))
+	plateL:SetGradient("HORIZONTAL", CreateColor(0, 0, 0, 0), CreateColor(0, 0, 0, 0.42))
 	plateL:SetPoint("TOP", root, "TOP", 0, 0)
 	plateL:SetPoint("BOTTOM", root, "BOTTOM", 0, 0)
 	plateL:SetPoint("RIGHT", root, "CENTER", 0, 0)
 	plateR = textFrame:CreateTexture(nil, "ARTWORK")
 	plateR:SetTexture(FX.WHITE)
-	plateR:SetGradient("HORIZONTAL", CreateColor(0, 0, 0, 0.62), CreateColor(0, 0, 0, 0))
+	plateR:SetGradient("HORIZONTAL", CreateColor(0, 0, 0, 0.42), CreateColor(0, 0, 0, 0))
 	plateR:SetPoint("TOP", root, "TOP", 0, 0)
 	plateR:SetPoint("BOTTOM", root, "BOTTOM", 0, 0)
 	plateR:SetPoint("LEFT", root, "CENTER", 0, 0)
@@ -441,7 +443,7 @@ end
 ---------------------------------------------------------------------------
 local function setMainText(str)
 	text:SetText(str)
-	local half = (ME.Plain(text:GetStringWidth(), 0) or 0) / 2 + 70
+	local half = (ME.Plain(text:GetStringWidth(), 0) or 0) / 2 + 36
 	plateL:SetWidth(half)
 	plateR:SetWidth(half)
 end
@@ -484,7 +486,8 @@ function XP:Update()
 		hex(t), level, ME.Comma(cur), ME.Comma(max), hex(t), cur / max * 100))
 
 	local parts = {}
-	if rested > 0 then parts[#parts + 1] = ("|cff9fe0ffRested +%d%%|r"):format(rested / max * 100 + 0.5) end
+	-- Only worth showing once it rounds to at least 1% of the level.
+	if rested / max >= 0.005 then parts[#parts + 1] = ("|cff9fe0ffRested +%d%%|r"):format(rested / max * 100 + 0.5) end
 	if quest > 0 then parts[#parts + 1] = ("|cffffd933Quests +%s|r"):format(ME.Short(quest)) end
 	local perHour = demoXP and 14200 or rate()
 	if perHour > 0 then
