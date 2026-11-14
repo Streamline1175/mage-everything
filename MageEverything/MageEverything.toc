@@ -1,0 +1,24 @@
+## Interface: 16001
+## Title: |cff69ccf0Mage|r Everything
+## Notes: Personal mage companion for WoW Forever: next-spell HUD, proc alerts, cooldowns, spec-themed XP bar, reminders and portals.
+## Author: Personal use
+## Version: 1.0.0
+## Category: Combat
+## IconTexture: Interface\Icons\INV_Staff_13
+## SavedVariables: MageEverythingDB
+## AddonCompartmentFunc: MageEverything_OnCompartmentClick
+
+Core.lua
+FX.lua
+Spells.lua
+Spec.lua
+State.lua
+Rotation.lua
+HUD.lua
+Cooldowns.lua
+Alerts.lua
+XPBar.lua
+Reminders.lua
+Portals.lua
+QoL.lua
+Options.lua
