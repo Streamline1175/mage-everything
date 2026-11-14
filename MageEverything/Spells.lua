@@ -45,8 +45,7 @@ local DEFS = {
 	Blink           = { "Blink", 1953 },
 	Counterspell    = { "Counterspell", 2139 },
 	Polymorph       = { "Polymorph", 118 },
-	PolymorphPig    = { "Polymorph: Pig", 28272 },
-	PolymorphTurtle = { "Polymorph: Turtle", 28271 },
+	-- (the Pig and Turtle variants share the name "Polymorph" in this client)
 	PolymorphCow    = { "Polymorph: Cow", 28270 },
 	RemoveCurse     = { "Remove Lesser Curse", 475 },
 	SlowFall        = { "Slow Fall", 130 },

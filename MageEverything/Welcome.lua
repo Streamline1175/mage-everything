@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.3.2"] = {
+		"Drink and Eat buttons now work: they stay available out of combat and glow when mana or health is low.",
+		"Removed the pale glow strips above and below the experience bar.",
+		"/mage diag reports more about what the game allows in combat.",
+	},
 	["1.3.1"] = {
 		"Removed the pale glow strips above and below the experience bar.",
 		"Everything from 1.3.0: Polymorph timer, wand badge, food and drink buttons, trainer reminders, profiles.",

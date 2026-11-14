@@ -30,7 +30,7 @@ Restart the game (or `/reload`). The addon only activates on a Mage.
 | **Mage XP bar** | Arcane (violet), Fire (orange) or Frost (blue) theme. Energy flows through the fill, motes drift off it (embers rise fast for Fire, frost falls slowly), an orb spins at the leading edge and "+XP" numbers float up on each gain. Outlined text shows level, XP and percent; a line above shows rested XP, quest XP waiting, XP per hour, time to level and kills to level. Hover for a full breakdown. |
 | **Polymorph** | A countdown icon started by your own Polymorph cast, a banner before it ends, and a prompt to sheep the add when a second enemy joins. The game hides the debuff itself, so a sheep that breaks early is not detected. |
 | **Wand** | A "Wand finish" badge fades in when your target is nearly dead; a reminder appears if no wand is equipped. |
-| **Reminders** | Out of combat, clickable buttons appear for missing Arcane Intellect, missing armor spell, no conjured water or food, no mana gem, a curse on you, and Drink / Eat buttons that use your best conjured water and food. Info icons flag a missing wand and spells or ranks waiting at the trainer (hover for the list). |
+| **Reminders** | Out of combat, clickable buttons appear for missing Arcane Intellect, missing armor spell, no conjured water or food, no mana gem, a curse on you, and Drink / Eat buttons that use your best conjured water and food (always available out of combat; they glow when mana or health is low). Info icons flag a missing wand and spells or ranks waiting at the trainer (hover for the list). |
 | **Trainer** | When a level unlocks new spells or ranks, a banner and a chat line list them. |
 | **Portal menu** | `/mage portals`: left-click a city to teleport, right-click for a portal. |
 | **Vendors** | Sells junk and repairs automatically. |
@@ -77,7 +77,7 @@ WoW Forever runs on the modern client, which restricts combat addons. This shape
 
 - **No addon can press buttons for you.** Casting and targeting must come from a key press or
   click. The HUD shows the key to press; it cannot press it.
-- **In combat the client hides exact health, mana, buffs and debuffs from addons.** The engine
+- **The client hides exact health and mana from addons at all times, and buffs and debuffs in combat.** The engine
   therefore works from what stays readable: whether a spell is usable or on cooldown, Blizzard's
   proc-glow events, your own casts, how many enemies are in combat, and whether your target is
   attacking you. Two more readable signals stand in for hidden buffs: a spell's current **mana

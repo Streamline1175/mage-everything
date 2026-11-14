@@ -102,19 +102,6 @@ local function evaluate()
 	end
 
 	-- Drink / eat: click to use the best conjured water or food.
-	local mounted = ME.Bool(IsMounted())
-	if db.drink and water and not mounted then
-		local f = manaFraction()
-		if f and f < db.drinkAt then
-			list[#list + 1] = { key = "ConjureWater", label = "Drink", item = water, tip = { "Click to drink." } }
-		end
-	end
-	if db.eat and food and not mounted then
-		local f = healthFraction()
-		if f and f < db.eatAt then
-			list[#list + 1] = { key = "ConjureFood", label = "Eat", item = food, tip = { "Click to eat." } }
-		end
-	end
 
 	if db.wand and (UnitLevel("player") or 1) >= 5 and not ME.HasWand() then
 		list[#list + 1] = { key = "Shoot", label = "No wand", info = true, icon = "Interface\\Icons\\INV_Wand_01",
@@ -133,7 +120,55 @@ local function evaluate()
 				icon = "Interface\\Icons\\INV_Misc_Book_09", tip = tip }
 		end
 	end
+	-- Drink / eat buttons go last so the row does not shift. This client
+	-- hides health and mana from addons even out of combat, so the buttons
+	-- stay available and their glow is driven by a threshold curve instead.
+	local mounted = ME.Bool(IsMounted())
+	if db.drink and water and not mounted then
+		list[#list + 1] = { key = "ConjureWater", label = "Drink", item = water, need = "mana",
+			tip = { "Click to drink.", "Glows when your mana is low." } }
+	end
+	if db.eat and food and not mounted then
+		list[#list + 1] = { key = "ConjureFood", label = "Eat", item = food, need = "health",
+			tip = { "Click to eat.", "Glows when your health is low." } }
+	end
 	return list
+end
+
+-- Threshold curves: 1 below the threshold, 0 above it.
+local curves = {}
+local function needCurve(threshold)
+	if not (C_CurveUtil and C_CurveUtil.CreateCurve) then return nil end
+	local c = curves[threshold]
+	if not c then
+		c = C_CurveUtil.CreateCurve()
+		if Enum.LuaCurveType and c.SetType then c:SetType(Enum.LuaCurveType.Step) end
+		c:AddPoint(0, 1)
+		c:AddPoint(threshold, 0)
+		c:AddPoint(1, 0)
+		curves[threshold] = c
+	end
+	return c
+end
+
+-- Sets the glow of a drink / eat button from the hidden health or mana value.
+local function updateNeed(b)
+	local db = ME.db.reminders
+	local done = false
+	if b.need == "mana" and UnitPowerPercent then
+		local curve = needCurve(db.drinkAt)
+		local mana = Enum.PowerType and Enum.PowerType.Mana or 0
+		if curve then done = pcall(function() b.bg:SetAlpha(UnitPowerPercent("player", mana, false, curve)) end) end
+	elseif b.need == "health" and UnitHealthPercent then
+		local curve = needCurve(db.eatAt)
+		if curve then done = pcall(function() b.bg:SetAlpha(UnitHealthPercent("player", true, curve)) end) end
+	end
+	if not done then
+		-- Older clients where the values are readable.
+		local f = (b.need == "mana") and manaFraction() or healthFraction()
+		local limit = (b.need == "mana") and db.drinkAt or db.eatAt
+		b.bg:SetAlpha((f and f < limit) and 1 or 0)
+	end
 end
 
 local function acquire(i)
@@ -147,6 +182,7 @@ local function acquire(i)
 	bg:SetPoint("TOPLEFT", -2, 2)
 	bg:SetPoint("BOTTOMRIGHT", 2, -2)
 	bg:SetColorTexture(1, 0.82, 0.1, 0.9)
+	b.bg = bg
 	b.pulse = FX.Pulse(bg, 1, 0.25, 0.7)
 	b.tex = b:CreateTexture(nil, "ARTWORK")
 	b.tex:SetAllPoints()
@@ -197,7 +233,17 @@ function Rem:Update()
 			b:SetAttribute("unit", item.unit)
 		end
 		b:Show()
-		if not b.pulse:IsPlaying() then b.pulse:Play() end
+		b.need = item.need
+		if item.need then
+			-- Steady glow whose strength follows the health / mana curve.
+			b.pulse:Stop()
+			if item.need == "mana" then b.bg:SetColorTexture(0.3, 0.6, 1, 1) else b.bg:SetColorTexture(0.3, 0.9, 0.4, 1) end
+			updateNeed(b)
+		else
+			b.bg:SetColorTexture(1, 0.82, 0.1, 0.9)
+			b.bg:SetAlpha(1)
+			if not b.pulse:IsPlaying() then b.pulse:Play() end
+		end
 	end
 	for i = #list + 1, #buttons do
 		buttons[i]:Hide()
@@ -241,6 +287,13 @@ function Rem:OnLogin()
 	end)
 	ME:On("PLAYER_EQUIPMENT_CHANGED", queue)
 	ME:On("PLAYER_LEVEL_UP", queue)
-	C_Timer.NewTicker(3, queue) -- health / mana levels for the eat and drink buttons
+	C_Timer.NewTicker(3, queue)
+	-- Keep the drink / eat glow in step with health and mana.
+	C_Timer.NewTicker(0.5, function()
+		if InCombatLockdown() then return end
+		for _, b in ipairs(buttons) do
+			if b.need and b:IsShown() then updateNeed(b) end
+		end
+	end)
 	queue()
 end

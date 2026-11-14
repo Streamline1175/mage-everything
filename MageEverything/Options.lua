@@ -92,8 +92,10 @@ local function buildPanel()
 	check(db.reminders, "armor", "Remind: armor spell", nil)
 	check(db.reminders, "conjure", "Remind: conjure water and food", nil)
 	check(db.reminders, "gem", "Remind: mana gem", nil)
-	check(db.reminders, "drink", "Button: drink when low on mana", "Uses your best conjured water.")
-	check(db.reminders, "eat", "Button: eat when low on health", "Uses your best conjured food.")
+	check(db.reminders, "drink", "Button: drink", "Uses your best conjured water. Glows when mana is low.")
+	check(db.reminders, "eat", "Button: eat", "Uses your best conjured food. Glows when health is low.")
+	slider(db.reminders, "drinkAt", "Drink glow below this mana", nil, 0.1, 0.9, 0.05, "%.2f")
+	slider(db.reminders, "eatAt", "Eat glow below this health", nil, 0.1, 0.9, 0.05, "%.2f")
 	check(db.reminders, "wand", "Remind: no wand equipped", nil)
 	check(db.reminders, "curse", "Button: Remove Lesser Curse", "Out of combat only; curses are hidden from addons during a fight.")
 	check(db.reminders, "trainer", "Remind: new spells at the trainer", "Also announces them when you level up.")
@@ -166,6 +168,20 @@ function Options:Diagnose()
 	p("  mana cost readable:", yn(ME.ManaCost(ME.FirstKnown("Frostbolt", "Fireball") or "Fireball") ~= nil),
 		"Heating Up stacks:", ME.HeatingUpStacks(), "Arcane Blast stacks:", ME.ArcaneBlastStacks(),
 		"Winter's Chill:", ME.WintersChill())
+	-- Cooldown and cast-time signals the rotation depends on in combat.
+	do
+		local key = ME.FirstKnown("FireBlast", "FrostNova", "Frostbolt")
+		local id = key and ME.Spell(key)
+		local cd = id and ME.Try(C_Spell.GetSpellCooldown, id)
+		local info = id and ME.Try(C_Spell.GetSpellInfo, id)
+		local ready, why = ME.Ready(key or "Frostbolt")
+		p(("  %s: on-cooldown flag readable: %s, cast time readable: %s, ready: %s%s"):format(tostring(key),
+			yn(cd and cd.isActive ~= nil and not ME.issecret(cd.isActive)),
+			yn(info and info.castTime ~= nil and not ME.issecret(info.castTime)),
+			tostring(ready), why and (" (" .. why .. ")") or ""))
+		p("  wand equipped:", yn(ME.HasWand()), "sheep timer:", ("%d"):format(ME.SheepRemaining()),
+			"target casting seen:", yn(ME.state.targetCasting))
+	end
 	local assist = C_AssistedCombat and C_AssistedCombat.IsAvailable and ME.Try(C_AssistedCombat.IsAvailable)
 	p("  Blizzard rotation assistant:", yn(assist))
 	local known, missing = {}, {}
