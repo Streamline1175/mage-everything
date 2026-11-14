@@ -1,5 +1,7 @@
 # Mage Everything
 
+<img src="logo.png" width="160" alt="Mage Everything logo">
+
 A personal Mage addon for **World of Warcraft: Forever** (client 1.60.1, interface 16001).
 
 It shows the best spell to press next for the situation you are in, alerts you to procs,
@@ -58,6 +60,7 @@ when you respec or swap dual spec. `/mage spec fire` forces one.
 /mage portals         teleport / portal menu
 /mage spec auto|arcane|fire|frost
 /mage diag            print what the client lets the addon read
+/mage welcome         setup guide (opens by itself on first install and after updates)
 /mage on | off        enable / disable (then /reload)
 ```
 

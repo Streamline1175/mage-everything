@@ -167,6 +167,7 @@ local function help()
 	print("  /mage portals - teleport and portal menu")
 	print("  /mage spec auto|arcane|fire|frost - override spec detection")
 	print("  /mage diag - show what the client lets the addon read")
+	print("  /mage welcome - setup guide")
 	print("  /mage on | off - enable or disable the addon (then /reload)")
 end
 
@@ -192,6 +193,8 @@ local function slash(msg)
 		ME:ResetPositions()
 	elseif msg == "portals" or msg == "portal" then
 		ME.Portals:Toggle()
+	elseif msg == "welcome" or msg == "guide" or msg == "setup" then
+		ME.Welcome:Toggle()
 	elseif msg == "diag" or msg == "debug" then
 		Options:Diagnose()
 	elseif cmd == "spec" then
