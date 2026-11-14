@@ -9,18 +9,19 @@ local _, ME = ...
 local Spells = ME:NewModule("Spells")
 
 -- key = { English name, candidate IDs (rank 1 / known variants) }
+-- IDs checked against the datamined tables for Forever build 1.60.1.70938.
 local DEFS = {
 	-- Nukes
 	Fireball        = { "Fireball", 133 },
 	Frostbolt       = { "Frostbolt", 116 },
-	FrostfireBolt   = { "Frostfire Bolt", 401502, 44614 },
+	FrostfireBolt   = { "Frostfire Bolt", 401502 },
 	ArcaneMissiles  = { "Arcane Missiles", 5143 },
-	ArcaneBlast     = { "Arcane Blast", 400574, 30451 },
-	ArcaneWrath     = { "Arcane Wrath" },
+	ArcaneBlast     = { "Arcane Blast", 400574 },
+	ArcaneWrath     = { "Arcane Wrath", 1326079 },
 	Pyroblast       = { "Pyroblast", 11366 },
 	Scorch          = { "Scorch", 2948 },
 	FireBlast       = { "Fire Blast", 2136 },
-	IceLance        = { "Ice Lance", 400640, 30455 },
+	IceLance        = { "Ice Lance", 1312002, 400640 },
 	Shoot           = { "Shoot", 5019 },
 	-- AoE
 	ArcaneExplosion = { "Arcane Explosion", 1449 },
@@ -62,18 +63,18 @@ local DEFS = {
 	ConjureManaCitrine = { "Conjure Mana Citrine", 10053 },
 	ConjureManaRuby    = { "Conjure Mana Ruby", 10054 },
 	-- Forever additions
-	Study           = { "Study" },
-	ComprehendScroll = { "Comprehend Scroll" },
-	-- Proc auras (never castable; listed so their names resolve for alerts)
+	Study           = { "Study", 1302508 },
+	ComprehendScroll = { "Comprehend Scroll", 1296017 },
+	-- Proc auras (buff IDs from the Forever 1.60.1 data; the talents that
+	-- grant them are 400588 / 400647 / 400624 and share the same names).
 	Clearcasting    = { "Clearcasting", 12536 },
-	MissileBarrage  = { "Missile Barrage", 44401 },
-	FingersOfFrost  = { "Fingers of Frost", 44544 },
-	HeatingUp       = { "Heating Up", 48107 },
-	HotStreak       = { "Hot Streak", 48108 },
+	MissileBarrage  = { "Missile Barrage", 400589 },
+	FingersOfFrost  = { "Fingers of Frost", 400669 },
+	HeatingUp       = { "Heating Up", 400625 },
 }
 Spells.DEFS = DEFS
 
--- Teleports / portals (classic IDs; resolved by name like everything else).
+-- Teleports / portals (resolved by name like everything else).
 Spells.PORTALS = {
 	{ city = "Stormwind",     faction = "Alliance", tp = { "Teleport: Stormwind", 3561 },     portal = { "Portal: Stormwind", 10059 } },
 	{ city = "Ironforge",     faction = "Alliance", tp = { "Teleport: Ironforge", 3562 },     portal = { "Portal: Ironforge", 11416 } },
@@ -81,7 +82,7 @@ Spells.PORTALS = {
 	{ city = "Orgrimmar",     faction = "Horde",    tp = { "Teleport: Orgrimmar", 3567 },     portal = { "Portal: Orgrimmar", 11417 } },
 	{ city = "Undercity",     faction = "Horde",    tp = { "Teleport: Undercity", 3563 },     portal = { "Portal: Undercity", 11418 } },
 	{ city = "Thunder Bluff", faction = "Horde",    tp = { "Teleport: Thunder Bluff", 3566 }, portal = { "Portal: Thunder Bluff", 11420 } },
-	{ city = "Dalaran",       faction = "Both",     tp = { "Teleport: Dalaran" },             portal = { "Portal: Dalaran" } },
+	{ city = "Dalaran",       faction = "Both",     tp = { "Teleport: Dalaran", 1297659 } }, -- no mage portal exists
 }
 
 local book = {}        -- localised name -> { id = highest-rank spellID, rank = n }

@@ -10,6 +10,7 @@ local root
 local rows = {}
 
 local function known(def)
+	if not def then return nil end
 	local id, name = ME.Spells.ResolveDef(def)
 	return id, name
 end

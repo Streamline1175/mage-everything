@@ -48,6 +48,8 @@ local function buildPanel()
 	check(db.hud, "showRing", "Animated rune ring", "Rotating ring behind the main icon.")
 	check(db.hud, "onlyWithTarget", "Only with an enemy targeted", "Hide suggestions when nothing hostile is targeted.")
 	check(db.hud, "useWand", "Suggest the wand when out of mana", "Falls back to Shoot when the filler is unaffordable.")
+	check(db.hud, "fireballFiller", "Fire: Fireball filler instead of Frostfire Bolt",
+		"Frostfire Bolt is the default filler once learned. Deep Fire builds may prefer Fireball.")
 	check(db.hud, "useBlizzardAssist", "Prefer Blizzard's assistant when offered",
 		"Uses the game's own rotation assistant if this client provides one. WoW Forever currently does not.")
 	slider(db.hud, "scale", "HUD scale", nil, 0.6, 2, 0.05, "%.2f")
@@ -129,6 +131,17 @@ function Options:Diagnose()
 	end
 	p("  health curve API:", yn(UnitHealthPercent ~= nil and C_CurveUtil ~= nil),
 		"duration objects:", yn(C_Spell.GetSpellCooldownDuration ~= nil))
+	if C_Secrets and C_Secrets.ShouldSpellAuraBeSecret then
+		local parts = {}
+		for _, key in ipairs({ "Clearcasting", "MissileBarrage", "FingersOfFrost", "HeatingUp" }) do
+			local def = ME.Spells.DEFS[key]
+			parts[#parts + 1] = key .. " " .. yn(ME.Try(C_Secrets.ShouldSpellAuraBeSecret, def[2]))
+		end
+		p("  proc auras hidden now:", table.concat(parts, ", "))
+	end
+	p("  mana cost readable:", yn(ME.ManaCost(ME.FirstKnown("Frostbolt", "Fireball") or "Fireball") ~= nil),
+		"Heating Up stacks:", ME.HeatingUpStacks(), "Arcane Blast stacks:", ME.ArcaneBlastStacks(),
+		"Winter's Chill:", ME.WintersChill())
 	local assist = C_AssistedCombat and C_AssistedCombat.IsAvailable and ME.Try(C_AssistedCombat.IsAvailable)
 	p("  Blizzard rotation assistant:", yn(assist))
 	local known, missing = {}, {}

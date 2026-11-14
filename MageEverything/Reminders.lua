@@ -17,24 +17,12 @@ local function itemCount(id)
 	return ME.Plain(n, 0) or 0
 end
 
--- Conjured food/water item IDs vary by rank, so count bag items in the
--- Food & Drink class whose name starts with "Conjured" (English clients).
-local function conjuredCount()
-	if not (C_Container and C_Container.GetContainerNumSlots) then return nil end
-	local total, sawAny = 0, false
-	for bag = 0, 4 do
-		for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
-			local info = C_Container.GetContainerItemInfo(bag, slot)
-			if info and info.itemID then
-				sawAny = true
-				local name = info.itemName or (C_Item.GetItemNameByID and C_Item.GetItemNameByID(info.itemID))
-				if type(name) == "string" and name:find("^Conjured") then
-					total = total + (info.stackCount or 1)
-				end
-			end
-		end
-	end
-	if not sawAny then return nil end
+-- Conjured water, one item per Conjure Water rank (Forever 1.60.1 data).
+local WATER = { 5350, 2288, 2136, 3772, 8077, 8078, 8079, 231778 }
+
+local function waterCount()
+	local total = 0
+	for _, id in ipairs(WATER) do total = total + itemCount(id) end
 	return total
 end
 
@@ -59,8 +47,7 @@ local function evaluate()
 		if key then list[#list + 1] = { key = key, label = "Armor" } end
 	end
 	if db.conjure and ME.Known("ConjureWater") then
-		local n = conjuredCount()
-		if n == 0 then list[#list + 1] = { key = "ConjureWater", label = "Water" } end
+		if waterCount() == 0 then list[#list + 1] = { key = "ConjureWater", label = "Water" } end
 	end
 	if db.gem then
 		local have = false

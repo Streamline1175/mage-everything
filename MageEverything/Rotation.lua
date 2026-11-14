@@ -51,13 +51,26 @@ local function fillerOrWand(filler, reason)
 	return ok
 end
 
+-- Fire Blast and Ice Lance share one 8 s cooldown, so only ever queue one.
+local function quickInstant(reason, preferLance)
+	local first, second = "FireBlast", "IceLance"
+	if preferLance then first, second = second, first end
+	if not add(first, reason) then add(second, reason) end
+end
+
 local function movingInstants()
 	if not S.moving then return end
-	if ME.Proc("FingersOfFrost") or ME.Proc("Frozen") then add("IceLance", "Moving - shatter", true) end
-	add("FireBlast", "Moving - instant")
-	add("IceLance", "Moving - instant")
+	local frozen = ME.Proc("FingersOfFrost") or ME.Proc("Frozen")
+	if frozen then
+		add("IceLance", "Moving - shatter", true)
+	end
+	quickInstant("Moving - instant", ME.spec == "FROST")
 	if S.aggro then add("ConeOfCold", "Moving - cone") end
 	if aoe() then add("ArcaneExplosion", "Moving - AoE") end
+end
+
+local function justCast(key, within)
+	return S.casting == key or (S.lastCast == key and GetTime() - S.lastCastTime < (within or 2))
 end
 
 ---------------------------------------------------------------------------
@@ -70,7 +83,14 @@ local function frost()
 	end
 	if ME.Proc("FingersOfFrost") then
 		situation = "SHATTER"
-		add("IceLance", "Fingers of Frost", true)
+		-- Two charges: Frostbolt first, Ice Lance right behind it, so both
+		-- hit a "frozen" target. Lance straight away only when moving.
+		if S.moving or justCast("Frostbolt") then
+			add("IceLance", "Fingers of Frost", true)
+		else
+			add("Frostbolt", "Fingers of Frost - then Ice Lance", true)
+			add("IceLance", "Fingers of Frost", true)
+		end
 	end
 	if ME.Proc("Frozen") then
 		situation = "SHATTER"
@@ -84,12 +104,15 @@ local function frost()
 		if not S.moving then add("Blizzard", "AoE - channel") end
 		add("ArcaneExplosion", "AoE - point blank")
 	end
+	-- Winter's Chill (deep Frost) makes Cone of Cold worth it on one target.
+	if (ME.specPoints.FROST or 0) >= 26 and ME.WintersChill() >= 5 and S.aggro then
+		add("ConeOfCold", "Winter's Chill x5")
+	end
 	if ME.Proc("MissileBarrage") and not S.moving then
 		add("ArcaneMissiles", "Missile Barrage", true)
 	end
 	movingInstants()
-	-- Ice Lance and Fire Blast share a cooldown: before Ice Lance exists,
-	-- Fire Blast is simply free instant damage.
+	-- Before Ice Lance exists, Fire Blast is simply free instant damage.
 	if not ME.Known("IceLance") then add("FireBlast", "Instant damage") end
 	fillerOrWand("Frostbolt", "Filler")
 	if not ME.Known("Frostbolt") then fillerOrWand("Fireball", "Filler") end
@@ -99,14 +122,16 @@ end
 -- Fire
 ---------------------------------------------------------------------------
 local function fire()
-	local filler = ME.Known("FrostfireBolt") and "FrostfireBolt" or "Fireball"
+	local filler = "Fireball"
+	if ME.Known("FrostfireBolt") and not ME.db.hud.fireballFiller then filler = "FrostfireBolt" end
 	if not S.inCombat then
 		situation = "OPENER"
 		if not add("Pyroblast", "Opener - long cast", false, true) then
 			add(filler, "Opener")
 		end
 	end
-	if ME.Proc("HeatingUp") then
+	-- Three stacks make Pyroblast a 1.5 s cast (not an instant).
+	if ME.Proc("HeatingUp") and not S.moving then
 		situation = "PROC"
 		add("Pyroblast", "Heating Up x3", true)
 	end
@@ -123,12 +148,19 @@ local function fire()
 	if bigFight() then
 		if add("Combustion", "Burst") then situation = "BURST" end
 	end
+	-- Fire Vulnerability on targets that live long enough: build to 5, then
+	-- refresh before it runs out.
+	if S.targetElite and S.inCombat and not S.moving then
+		local n = ME.ScorchStacks()
+		if n < 5 then
+			add("Scorch", ("Fire Vulnerability %d/5"):format(n))
+		elseif ME.ScorchRemaining() < 6 then
+			add("Scorch", "Refresh Fire Vulnerability")
+		end
+	end
 	if S.inCombat then
 		local n = ME.HeatingUpStacks()
 		add("FireBlast", n >= 2 and "Heating Up -> 3" or "Build Heating Up")
-	end
-	if S.targetElite and not S.moving and ME.ScorchStacks() < 5 then
-		add("Scorch", ("Fire Vulnerability %d/5"):format(ME.ScorchStacks()))
 	end
 	movingInstants()
 	if S.moving then add("Scorch", "Short cast") end
@@ -140,13 +172,26 @@ end
 ---------------------------------------------------------------------------
 local function arcane()
 	local filler = ME.FirstKnown("ArcaneBlast", "Frostbolt", "Fireball")
+	local stacks = ME.ArcaneBlastStacks()
 	if not S.inCombat then
 		situation = "OPENER"
 		if not add("ArcaneWrath", "Opener", false, true) then add(filler, "Opener") end
 	end
-	if (ME.Proc("MissileBarrage") or ME.Proc("Clearcasting")) and not S.moving then
-		situation = "PROC"
-		add("ArcaneMissiles", ME.Proc("MissileBarrage") and "Missile Barrage" or "Clearcasting - free", true)
+	if not S.moving then
+		if ME.Proc("MissileBarrage") then
+			situation = "PROC"
+			add("ArcaneMissiles", "Missile Barrage", true)
+		elseif ME.Proc("Clearcasting") then
+			-- Spend the free cast on the most expensive spell available.
+			situation = "PROC"
+			if not add("ArcaneWrath", "Clearcasting - free", true) then
+				if stacks >= 2 then
+					add("ArcaneBlast", "Clearcasting - free", true)
+				else
+					add("ArcaneMissiles", "Clearcasting - free", true)
+				end
+			end
+		end
 	end
 	if aoe() then
 		situation = "AOE x" .. S.enemies
@@ -154,8 +199,10 @@ local function arcane()
 		add("ConeOfCold", "AoE - cone")
 		if not S.moving then add("Blizzard", "AoE - channel") end
 	end
+	local burning = false
 	if bigFight() then
 		if add("ArcanePower", "Burst") then situation = "BURST" end
+		burning = ME.Remembered("ArcanePower") or S.targetElite
 	end
 	if ME.Remembered("PoM") then
 		if not add("ArcaneWrath", "Presence of Mind - instant", true) then
@@ -167,9 +214,13 @@ local function arcane()
 	if not S.moving then add("ArcaneWrath", "On cooldown") end
 	movingInstants()
 	if filler == "ArcaneBlast" then
-		local n = ME.ArcaneBlastStacks()
-		fillerOrWand("ArcaneBlast", n >= 4 and "Arcane Blast x4" or ("Arcane Blast %d/4"):format(n))
-		-- Stacks multiply the mana cost: when Blast is unaffordable, dump with Missiles.
+		-- Each stack doubles Blast's cost: outside burst, stop at 3 and let
+		-- the buff fall off (it lasts 18 s from the first cast).
+		if stacks >= 3 and not burning and not S.moving then
+			add("ArcaneMissiles", "Let Arcane Blast drop")
+			add(ME.FirstKnown("Frostbolt", "Fireball"), "Let Arcane Blast drop")
+		end
+		fillerOrWand("ArcaneBlast", ("Arcane Blast %d/4"):format(stacks))
 		if oom and not S.moving then add("ArcaneMissiles", "Low mana - cheaper") end
 	else
 		fillerOrWand(filler, "Filler")
@@ -199,25 +250,33 @@ local LISTS = { FROST = frost, FIRE = fire, ARCANE = arcane, NONE = apprentice }
 ---------------------------------------------------------------------------
 -- Reactions
 ---------------------------------------------------------------------------
+local function barrierDown()
+	return not ME.Remembered("IceBarrier") and ME.HasBuff("IceBarrier") ~= true and ME.Ready("IceBarrier")
+end
+
 local function reaction()
 	local r = ME.db.reaction
 	if not r.enabled or not S.hasTarget then return nil end
 	if r.counterspell and S.targetCasting and ME.Ready("Counterspell") then
 		return { key = "Counterspell", reason = "Interrupt!", glow = true }
 	end
+	-- Ice Barrier also raises Frost damage, so keep it up from before the pull.
+	if r.shields and barrierDown() and (S.inCombat or ME.spec == "FROST") then
+		return { key = "IceBarrier", reason = ME.spec == "FROST" and "Shield + Frost damage" or "Shield" }
+	end
 	if not S.inCombat then return nil end
 	if r.nova and S.aggro and not ME.Proc("Frozen") and ME.Ready("FrostNova")
 		and (ME.spec == "FROST" or S.enemies >= 2 or S.targetElite) then
 		return { key = "FrostNova", reason = "Root, then step back" }
 	end
-	if r.shields then
-		if not ME.Remembered("IceBarrier") and ME.HasBuff("IceBarrier") ~= true and ME.Ready("IceBarrier") then
-			return { key = "IceBarrier", reason = "Shield" }
-		end
-		if S.aggro and (S.targetElite or S.enemies >= 3) and not ME.Known("IceBarrier")
-			and not ME.Remembered("ManaShield") and ME.HasBuff("ManaShield") ~= true and ME.Ready("ManaShield") then
-			return { key = "ManaShield", reason = "Shield" }
-		end
+	if r.shields and S.aggro and (S.targetElite or S.enemies >= 3) and not ME.Known("IceBarrier")
+		and not ME.Remembered("ManaShield") and ME.HasBuff("ManaShield") ~= true and ME.Ready("ManaShield") then
+		return { key = "ManaShield", reason = "Shield" }
+	end
+	-- Cold Snap: a hard fight with Frost Nova and Ice Barrier both spent.
+	if r.shields and S.aggro and (S.targetElite or S.enemies >= 2) and ME.Ready("ColdSnap")
+		and ME.OnCooldown("FrostNova") and (not ME.Known("IceBarrier") or ME.OnCooldown("IceBarrier")) then
+		return { key = "ColdSnap", reason = "Reset Frost cooldowns" }
 	end
 	if r.evocation and oom and ME.Ready("Evocation") then
 		return { key = "Evocation", reason = "Out of mana" }
@@ -229,6 +288,7 @@ end
 local function panic()
 	if ME.Ready("IceBarrier") and not ME.Remembered("IceBarrier") then return "IceBarrier" end
 	if ME.Ready("IceBlock") then return "IceBlock" end
+	if ME.OnCooldown("IceBlock") and ME.Ready("ColdSnap") then return "ColdSnap" end
 	if ME.Ready("FrostNova") and S.aggro then return "FrostNova" end
 	if ME.Ready("ManaShield") and not ME.Remembered("ManaShield") then return "ManaShield" end
 	if ME.Ready("Blink") then return "Blink" end

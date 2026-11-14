@@ -47,7 +47,7 @@ ME.defaults = {
 	hud = {
 		enabled = true, scale = 1.0, alphaOOC = 0.55, showQueue = true, showReason = true,
 		showKeybind = true, showBars = true, showRing = true, onlyWithTarget = true,
-		aoeThreshold = 3, useBlizzardAssist = false, useWand = true,
+		aoeThreshold = 3, useBlizzardAssist = false, useWand = true, fireballFiller = false,
 	},
 	reaction = { enabled = true, nova = true, counterspell = true, shields = true, evocation = true },
 	panic = { enabled = true, health = 0.35, mana = 0.20 },

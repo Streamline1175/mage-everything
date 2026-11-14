@@ -16,6 +16,7 @@ local S = {
 	targetCasting = false, overlay = {}, lastCast = nil, lastCastTime = 0,
 	abStacks = 0, abExpire = 0, huStacks = 0, huExpire = 0,
 	scorchStacks = 0, scorchExpire = 0, frozenExpire = 0, frozenHits = 0,
+	wcStacks = 0, wcExpire = 0,
 }
 ME.state = S
 
@@ -122,20 +123,71 @@ end
 
 ---------------------------------------------------------------------------
 -- Procs
+-- Auras are hidden in combat and this build has no proc-glow data, so procs
+-- are also read from two things that stay visible: a spell's current mana
+-- cost (Clearcasting / Missile Barrage make spells free; Arcane Blast stacks
+-- double its cost) and its current cast time (Heating Up shortens Pyroblast).
 ---------------------------------------------------------------------------
+local function manaCost(key)
+	local id = ME.Spell(key)
+	if not id or not C_Spell.GetSpellPowerCost then return nil end
+	local costs = Try(C_Spell.GetSpellPowerCost, id)
+	if type(costs) ~= "table" then return nil end
+	for _, c in ipairs(costs) do
+		local kind = Plain(c.type)
+		if kind == nil or kind == 0 then return Plain(c.cost) end
+	end
+	return nil
+end
+ME.ManaCost = manaCost
+
+local function castTime(key)
+	local id = ME.Spell(key)
+	if not id or not C_Spell.GetSpellInfo then return nil end
+	local info = Try(C_Spell.GetSpellInfo, id)
+	return type(info) == "table" and Plain(info.castTime) or nil
+end
+
+-- Clearcasting: the next damage spell is free, so every nuke costs 0.
+local function clearcastByCost()
+	local key = ME.FirstKnown("Frostbolt", "Fireball")
+	local c = key and manaCost(key)
+	return c ~= nil and c == 0
+end
+
+local pyroBase = 0
+-- Heating Up stacks from Pyroblast's cast time (each stack removes 25%).
+local function heatingUpByCastTime()
+	if ME.Remembered("PoM") then return nil end
+	local ct = castTime("Pyroblast")
+	if not ct or ct <= 0 then return nil end
+	if ct > pyroBase then pyroBase = ct end
+	if pyroBase <= 0 then return nil end
+	return math.floor((1 - ct / pyroBase) * 4 + 0.5)
+end
+
+local abBase
+-- Arcane Blast stacks from its mana cost (+100% per stack).
+local function arcaneBlastByCost()
+	local c = manaCost("ArcaneBlast")
+	if not c or c <= 0 then return nil end
+	if ME.Remembered("ArcanePower") then c = c / 1.3 end
+	if not abBase or c < abBase then abBase = c end
+	return math.max(0, math.min(4, math.floor(c / abBase + 0.5) - 1))
+end
+
 function ME.Proc(name)
-	if name == "MissileBarrage" then
-		return S.overlay.ArcaneMissiles or ME.HasBuff("MissileBarrage") == true
-	elseif name == "Clearcasting" then
-		return ME.HasBuff("Clearcasting") == true
+	if name == "Clearcasting" then
+		return ME.HasBuff("Clearcasting") == true or clearcastByCost()
+	elseif name == "MissileBarrage" then
+		if S.overlay.ArcaneMissiles or ME.HasBuff("MissileBarrage") == true then return true end
+		-- Free Arcane Missiles while other spells still cost mana.
+		local c = manaCost("ArcaneMissiles")
+		return c ~= nil and c == 0 and not clearcastByCost()
 	elseif name == "FingersOfFrost" then
 		return S.overlay.IceLance or ME.HasBuff("FingersOfFrost") == true
 	elseif name == "HeatingUp" then
-		if S.overlay.Pyroblast or ME.HasBuff("HotStreak") == true then return true end
-		local has, aura = ME.HasBuff("HeatingUp")
-		local n = has and stacksOf(aura)
-		if n then return n >= 3 end
-		return S.huStacks >= 3 and now() < S.huExpire
+		return ME.HeatingUpStacks() >= 3
 	elseif name == "Frozen" then
 		return S.frozenHits > 0 and now() < S.frozenExpire
 	end
@@ -143,13 +195,33 @@ function ME.Proc(name)
 end
 
 function ME.ArcaneBlastStacks()
+	local byCost = arcaneBlastByCost()
+	if byCost then return byCost end
 	return now() < S.abExpire and S.abStacks or 0
 end
+
 function ME.HeatingUpStacks()
+	if S.overlay.Pyroblast then return 3 end
+	local has, aura = ME.HasBuff("HeatingUp")
+	local n = has and stacksOf(aura)
+	if n then return n end
+	local byCast = heatingUpByCastTime()
+	if byCast then return byCast end
+	-- Lower bound from Fire Blast casts (crits add more, unseen).
 	return now() < S.huExpire and S.huStacks or 0
 end
+
 function ME.ScorchStacks()
 	return now() < S.scorchExpire and S.scorchStacks or 0
+end
+function ME.ScorchRemaining()
+	return math.max(0, S.scorchExpire - now())
+end
+
+-- Winter's Chill: Frostbolts stack it on the target (5 max, 15 s) and the
+-- next Cone of Cold spends it.
+function ME.WintersChill()
+	return now() < S.wcExpire and S.wcStacks or 0
 end
 
 ---------------------------------------------------------------------------
@@ -158,6 +230,9 @@ end
 local function hostile(unit)
 	return Bool(UnitExists(unit)) and Bool(UnitCanAttack("player", unit)) and not Bool(UnitIsDead(unit))
 end
+
+local WATCHED = { "MissileBarrage", "Clearcasting", "FingersOfFrost", "HeatingUp" }
+local procState = {}
 
 local lastScan = 0
 function State:Refresh(force)
@@ -191,6 +266,16 @@ function State:Refresh(force)
 		n = math.max(n, 1)
 	end
 	S.enemies = n
+
+	-- Announce procs as they appear (drives the banners).
+	for i = 1, #WATCHED do
+		local name = WATCHED[i]
+		local on = ME.Proc(name) and true or false
+		if on ~= (procState[name] or false) then
+			procState[name] = on
+			ME:Fire("PROC", name, on)
+		end
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -205,11 +290,12 @@ local CAST_TIME = { Fireball = true, Frostbolt = true, FrostfireBolt = true, Arc
 	ArcaneWrath = true, Pyroblast = true, Scorch = true, Flamestrike = true, Polymorph = true }
 
 local BUFF_MEMORY = {
-	ArcaneIntellect = { "Intellect", 1800 }, ArcaneBrilliance = { "Intellect", 3600 },
+	ArcaneIntellect = { "Intellect", 3600 }, ArcaneBrilliance = { "Intellect", 3600 },
 	FrostArmor = { "Armor", 1800 }, IceArmor = { "Armor", 1800 }, MageArmor = { "Armor", 1800 },
 	IceBarrier = { "IceBarrier", 60 }, ManaShield = { "ManaShield", 60 },
-	Combustion = { "Combustion", 30 }, ArcanePower = { "ArcanePower", 15 },
-	PresenceOfMind = { "PoM", 20 }, Evocation = { "Evocation", 8 },
+	ArcanePower = { "ArcanePower", 15 },
+	-- Presence of Mind has no duration: it lasts until the next cast-time spell.
+	PresenceOfMind = { "PoM", 600 }, Evocation = { "Evocation", 8 },
 }
 
 local function onPlayerCast(key)
@@ -228,17 +314,24 @@ local function onPlayerCast(key)
 	end
 
 	if key == "ArcaneBlast" then
-		S.abStacks = math.min(4, ME.ArcaneBlastStacks() + 1)
-		S.abExpire = t + 18
+		-- The buff lasts 18 s from its first application and is not refreshed.
+		local live = t < S.abExpire and S.abStacks or 0
+		if live == 0 then S.abExpire = t + 18 end
+		S.abStacks = math.min(4, live + 1)
 		if S.abStacks == 4 then ME:Fire("MEM_PROC", "ArcaneBlast4") end
 	end
 	if key == "FireBlast" then
-		local before = ME.HeatingUpStacks()
+		local before = t < S.huExpire and S.huStacks or 0
 		S.huStacks = math.min(3, before + 1)
 		S.huExpire = t + 20
-		if S.huStacks == 3 and before < 3 then ME:Fire("MEM_PROC", "HeatingUp") end
 	elseif key == "Pyroblast" then
 		S.huStacks = 0
+	end
+	if key == "Frostbolt" then
+		S.wcStacks = math.min(5, ME.WintersChill() + 1)
+		S.wcExpire = t + 15
+	elseif key == "ConeOfCold" then
+		S.wcStacks = 0
 	end
 	if key == "Scorch" then
 		S.scorchStacks = math.min(5, ME.ScorchStacks() + 1)
@@ -263,7 +356,7 @@ function State:OnLogin()
 
 	ME:On("PLAYER_TARGET_CHANGED", function()
 		S.targetCasting = false
-		S.scorchStacks = 0
+		S.scorchStacks, S.wcStacks = 0, 0
 		State:Refresh(true)
 		ME:Fire("TARGET")
 	end)
@@ -322,9 +415,17 @@ function State:OnLogin()
 	end)
 	ME:On("PLAYER_DEAD", function()
 		wipe(S.overlay)
-		S.abStacks, S.huStacks, S.scorchStacks, S.frozenHits = 0, 0, 0, 0
+		S.abStacks, S.huStacks, S.scorchStacks, S.frozenHits, S.wcStacks = 0, 0, 0, 0, 0
 		for k in pairs(mem) do mem[k] = nil end
 	end)
 
+	-- Baselines for the cost / cast-time readings change with level and rank.
+	ME:Listen("SPELLS_UPDATED", function() abBase, pyroBase = nil, 0 end)
+
 	self:Refresh(true)
+	-- Keep state (and proc banners) current even when the HUD is hidden.
+	C_Timer.NewTicker(0.2, function()
+		local ok, err = pcall(State.Refresh, State)
+		if not ok then ME:Error("State", err) end
+	end)
 end

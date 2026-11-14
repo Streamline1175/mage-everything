@@ -102,9 +102,10 @@ function Alerts:Show(id, icon, title, subtitle, r, g, b, sound)
 end
 
 local PROC_TEXT = {
-	ArcaneMissiles = { "MISSILE BARRAGE", "Arcane Missiles - free and fast", "ARCANE" },
-	IceLance       = { "FINGERS OF FROST", "Ice Lance now", "FROST" },
-	Pyroblast      = { "HEATING UP", "Pyroblast now", "FIRE" },
+	MissileBarrage = { "MISSILE BARRAGE", "Arcane Missiles - free and fast", "ARCANE", "ArcaneMissiles" },
+	Clearcasting   = { "CLEARCASTING", "Next damage spell is free", "ARCANE", "Clearcasting" },
+	FingersOfFrost = { "FINGERS OF FROST", "Frostbolt, then Ice Lance", "FROST", "IceLance" },
+	HeatingUp      = { "HEATING UP x3", "Pyroblast - 1.5s cast", "FIRE", "Pyroblast" },
 }
 
 local function themeColor(school)
@@ -124,42 +125,25 @@ function Alerts:OnLogin()
 
 	local procSound = soundKit("UI_70_ARTIFACT_FORGE_TRAIT_GOLD_TRAIT", 54125)
 
-	-- Blizzard's proc-glow event.
-	ME:Listen("OVERLAY", function(key, shown)
-		if not shown then return end
-		local p = PROC_TEXT[key]
-		local r, g, b = themeColor(p and p[3])
-		Alerts:Show("overlay" .. key, ME.SpellIcon(key), p and p[1] or ME.SpellLabel(key):upper(),
-			p and p[2] or "Proc - use it now", r, g, b, procSound)
+	-- Procs detected by the state tracker (auras, mana cost, cast time).
+	ME:Listen("PROC", function(name, on)
+		local p = PROC_TEXT[name]
+		if not on or not p then return end
+		local r, g, b = themeColor(p[3])
+		Alerts:Show("proc" .. name, ME.SpellIcon(p[4]), p[1], p[2], r, g, b, procSound)
 	end)
 
-	-- Procs inferred from the player's own casts.
+	-- Effects inferred from the player's own casts.
 	ME:Listen("MEM_PROC", function(name)
 		if name == "Frozen" then
 			if ME.Known("IceLance") or ME.spec == "FROST" then
 				local r, g, b = themeColor("FROST")
 				Alerts:Show("frozen", ME.SpellIcon("FrostNova"), "FROZEN", "Shatter window", r, g, b)
 			end
-		elseif name == "HeatingUp" and not ME.state.overlay.Pyroblast then
-			local r, g, b = themeColor("FIRE")
-			Alerts:Show("overlayPyroblast", ME.SpellIcon("Pyroblast"), "HEATING UP", "Pyroblast now", r, g, b, procSound)
 		elseif name == "ArcaneBlast4" then
 			local r, g, b = themeColor("ARCANE")
 			Alerts:Show("ab4", ME.SpellIcon("ArcaneBlast"), "ARCANE BLAST x4", "Full power - watch your mana", r, g, b)
 		end
-	end)
-
-	-- Clearcasting has no button glow on some builds; catch it from auras
-	-- whenever they are readable.
-	local hadCC = false
-	ME:On("UNIT_AURA", function(unit)
-		if unit ~= "player" then return end
-		local has = ME.HasBuff("Clearcasting") == true
-		if has and not hadCC then
-			local r, g, b = themeColor("ARCANE")
-			Alerts:Show("clearcast", ME.SpellIcon("Clearcasting"), "CLEARCASTING", "Next spell is free", r, g, b, procSound)
-		end
-		hadCC = has
 	end)
 
 	ME:On("PLAYER_LEVEL_UP", function(level)
