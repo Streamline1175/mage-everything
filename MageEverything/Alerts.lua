@@ -149,6 +149,12 @@ function Alerts:OnLogin()
 	-- Polymorph about to run out (timer from your own cast).
 	local sheepWarned = true
 	ME:Listen("SHEEP", function() sheepWarned = false end)
+	ME:Listen("SHEEP_ENDED", function() sheepWarned = true end)
+	ME:Listen("SHEEP_BROKE", function(why)
+		sheepWarned = true
+		Alerts:Show("sheep", ME.SpellIcon("Polymorph"), "SHEEP BROKE", why or "", 1, 0.25, 0.25,
+			(SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959)
+	end)
 	C_Timer.NewTicker(0.5, function()
 		if sheepWarned then return end
 		local left = ME.SheepRemaining()

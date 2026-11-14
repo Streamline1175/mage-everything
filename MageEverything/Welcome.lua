@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.4.1"] = {
+		"Polymorph timer now ends when the sheep breaks or dies, with a SHEEP BROKE banner and a re-sheep prompt.",
+		"Drink and Eat buttons only appear when your mana or health is low.",
+		"The addon reads your individual talents; /mage diag reports much more.",
+	},
 	["1.4.0"] = {
 		"Drink and Eat buttons now only appear when your mana or health is low.",
 		"The addon reads your individual talents, so talent-specific advice (Winter's Chill, Improved Scorch) is exact.",

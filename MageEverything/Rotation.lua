@@ -289,6 +289,9 @@ local function reaction()
 	-- first seconds after a second enemy joins.
 	if r.polymorph and ME.Ready("Polymorph") and not S.moving then
 		local left = ME.SheepRemaining()
+		if left == 0 and S.enemies >= 2 and GetTime() - S.sheepBrokeAt < 6 then
+			return { key = "Polymorph", reason = "Sheep broke - Polymorph again", glow = true }
+		end
 		if left > 0 and left < 6 and S.enemies >= 2 then
 			return { key = "Polymorph", reason = ("Re-sheep (%ds left)"):format(math.ceil(left)) }
 		end

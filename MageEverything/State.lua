@@ -16,7 +16,7 @@ local S = {
 	targetCasting = false, overlay = {}, lastCast = nil, lastCastTime = 0,
 	abStacks = 0, abExpire = 0, huStacks = 0, huExpire = 0,
 	scorchStacks = 0, scorchExpire = 0, frozenExpire = 0, frozenHits = 0,
-	wcStacks = 0, wcExpire = 0, sheepStart = 0, sheepDur = 0, focusCasting = false, addsAt = 0,
+	wcStacks = 0, wcExpire = 0, sheepStart = 0, sheepDur = 0, sheepBrokeAt = 0, focusCasting = false, addsAt = 0,
 }
 ME.state = S
 
@@ -241,10 +241,63 @@ end
 ---------------------------------------------------------------------------
 local SHEEP_SECONDS = { [118] = 20, [12824] = 30, [12825] = 40, [12826] = 50 }
 
--- Seconds left on the player's last Polymorph (a timer from the cast: the
--- debuff itself is hidden, so an early break cannot be seen).
+-- Seconds left on the player's last Polymorph. The debuff itself is hidden,
+-- so this is a timer from the cast, ended early when a break is detected
+-- (see the sheep tracking below).
 function ME.SheepRemaining()
 	return math.max(0, S.sheepStart + S.sheepDur - now())
+end
+
+-- Sheep tracking. The sheeped enemy is followed by its nameplate unit, and
+-- the timer is ended as soon as any of these is seen:
+--   * you land a damaging spell while targeting it,
+--   * it starts casting,
+--   * it picks a target again (a polymorphed enemy has none),
+--   * it dies or its nameplate goes away.
+local function endSheep(broke, why)
+	if S.sheepDur == 0 then return end
+	S.sheepStart, S.sheepDur, S.sheepUnit, S.sheepSignal = 0, 0, nil, nil
+	if broke then
+		S.sheepBrokeAt = now()
+		S.sheepBrokeWhy = why
+		ME:Fire("SHEEP_BROKE", why)
+	else
+		ME:Fire("SHEEP_ENDED")
+	end
+end
+ME.EndSheep = endSheep
+
+local function startSheep(duration)
+	local t = now()
+	S.sheepStart, S.sheepDur = t, duration
+	S.sheepUnit, S.sheepSignal, S.sheepCalibrateAt = nil, nil, t + 1
+	-- Which nameplate is the enemy just sheeped (the current target)?
+	for i = 1, 40 do
+		local unit = "nameplate" .. i
+		if Bool(UnitExists(unit)) and Bool(UnitIsUnit(unit, "target")) then
+			S.sheepUnit = unit
+			break
+		end
+	end
+	ME:Fire("SHEEP", duration)
+end
+
+local function watchSheep()
+	local unit = S.sheepUnit
+	if not unit or S.sheepDur == 0 then return end
+	if now() >= S.sheepStart + S.sheepDur then return end
+	if not Bool(UnitExists(unit)) or Bool(UnitIsDead(unit)) then
+		endSheep(false)
+		return
+	end
+	local hasTarget = Bool(UnitExists(unit .. "target"))
+	if S.sheepSignal == nil then
+		-- One second after the cast: a sheeped enemy should have no target.
+		-- If it still shows one, this signal cannot be trusted for this sheep.
+		if now() >= S.sheepCalibrateAt then S.sheepSignal = not hasTarget end
+	elseif S.sheepSignal and hasTarget then
+		endSheep(true, "it is attacking again")
+	end
 end
 
 local rangedSlot
@@ -315,6 +368,7 @@ function State:Refresh(force)
 		n = math.max(n, 1)
 	end
 	if n >= 2 and S.enemies < 2 then S.addsAt = t end -- a second enemy just joined
+	watchSheep()
 	S.enemies = n
 
 	-- Announce procs as they appear (drives the banners).
@@ -336,6 +390,10 @@ local DAMAGE = {
 	Pyroblast = true, Scorch = true, FireBlast = true, IceLance = true, ConeOfCold = true,
 	ArcaneExplosion = true, BlastWave = true, Flamestrike = true,
 }
+-- Spells that damage only the current target (used to spot a broken sheep).
+local SINGLE_TARGET = { Fireball = true, Frostbolt = true, FrostfireBolt = true, ArcaneBlast = true,
+	ArcaneWrath = true, Pyroblast = true, Scorch = true, FireBlast = true, IceLance = true,
+	ArcaneMissiles = true, Shoot = true }
 local CAST_TIME = { Fireball = true, Frostbolt = true, FrostfireBolt = true, ArcaneBlast = true,
 	ArcaneWrath = true, Pyroblast = true, Scorch = true, Flamestrike = true, Polymorph = true }
 
@@ -357,8 +415,11 @@ local function onPlayerCast(key)
 
 	if key:find("^Polymorph") then
 		local id = ME.Spell(key)
-		S.sheepStart, S.sheepDur = t, (id and SHEEP_SECONDS[id]) or 50
-		ME:Fire("SHEEP", S.sheepDur)
+		startSheep((id and SHEEP_SECONDS[id]) or 50)
+	elseif (SINGLE_TARGET[key]) and S.sheepUnit and S.sheepDur > 0
+		and Bool(UnitIsUnit("target", S.sheepUnit)) then
+		-- Any damage breaks Polymorph.
+		endSheep(true, "you hit it")
 	end
 	if key == "FrostNova" then
 		S.frozenExpire, S.frozenHits = t + 8, 2
@@ -435,6 +496,9 @@ function State:OnLogin()
 		end
 	end)
 	ME:On("UNIT_SPELLCAST_START", function(unit, _, spellID)
+		if unit == S.sheepUnit and unit ~= nil then
+			endSheep(true, "it started casting")
+		end
 		if unit == "player" then
 			S.casting = ME.KeyForSpell(spellID) or "?"
 		elseif unit == "target" then
@@ -447,6 +511,10 @@ function State:OnLogin()
 	end)
 	ME:On("UNIT_AURA", function(unit) if unit == "player" then seen.auraEvents = seen.auraEvents + 1 end end)
 	ME:On("PLAYER_FOCUS_CHANGED", function() S.focusCasting = false end)
+	-- The sheep's nameplate went away: it died or is out of sight.
+	ME:On("NAME_PLATE_UNIT_REMOVED", function(unit)
+		if unit ~= nil and unit == S.sheepUnit then endSheep(false) end
+	end)
 	ME:On("UNIT_SPELLCAST_CHANNEL_START", function(unit, _, spellID)
 		if unit == "player" then
 			S.channeling = ME.KeyForSpell(spellID) or "?"

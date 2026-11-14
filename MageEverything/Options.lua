@@ -63,7 +63,7 @@ local function buildPanel()
 	check(db.reaction, "evocation", "Reaction: Evocation", "When the filler spell is unaffordable.")
 	check(db.reaction, "gem", "Reaction: mana gem", "Suggested before Evocation when out of mana.")
 	check(db.reaction, "polymorph", "Reaction: Polymorph", "Sheep the add when a second enemy joins, and re-sheep before the timer ends.")
-	check(db.hud, "sheepTimer", "Polymorph timer", "Countdown from your own Polymorph cast. An early break is not detected.")
+	check(db.hud, "sheepTimer", "Polymorph timer", "Countdown from your own Polymorph cast. Ends early when the sheep is seen to break or die.")
 	check(db.hud, "wandFinish", "Wand finisher badge", "Shows when your target is nearly dead, to save mana on the kill.")
 	slider(db.hud, "wandFinishAt", "Wand finisher threshold", "Target health at which the wand badge appears.", 0.05, 0.5, 0.05, "%.2f")
 
@@ -180,8 +180,12 @@ function Options:Diagnose()
 			yn(cd and cd.isActive ~= nil and not ME.issecret(cd.isActive)),
 			yn(info and info.castTime ~= nil and not ME.issecret(info.castTime)),
 			tostring(ready), why and (" (" .. why .. ")") or ""))
-		p("  wand equipped:", yn(ME.HasWand()), "sheep timer:", ("%d"):format(ME.SheepRemaining()),
-			"target casting seen:", yn(ME.state.targetCasting))
+		p("  wand equipped:", yn(ME.HasWand()), "target casting seen:", yn(ME.state.targetCasting))
+		local st = ME.state
+		p(("  sheep: %ds left, following %s, target signal %s, last break: %s"):format(ME.SheepRemaining(),
+			tostring(st.sheepUnit or "nothing"),
+			st.sheepSignal == nil and "not checked" or (st.sheepSignal and "usable" or "not usable"),
+			st.sheepBrokeWhy or "none"))
 	end
 	-- Talents actually taken (drives talent-specific rotation rules).
 	do
