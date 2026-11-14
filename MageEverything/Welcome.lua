@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.4.2"] = {
+		"Undead: a Cannibalize button appears out of combat when your health is low.",
+		"Polymorph timer ends when the sheep breaks or dies, with a SHEEP BROKE banner and a re-sheep prompt.",
+		"Drink and Eat buttons only appear when your mana or health is low.",
+	},
 	["1.4.1"] = {
 		"Polymorph timer now ends when the sheep breaks or dies, with a SHEEP BROKE banner and a re-sheep prompt.",
 		"Drink and Eat buttons only appear when your mana or health is low.",

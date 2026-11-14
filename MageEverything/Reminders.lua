@@ -135,6 +135,11 @@ local function evaluate()
 		list[#list + 1] = { key = "ConjureWater", label = "Drink", item = water, need = "mana",
 			tip = { "Click to drink." } }
 	end
+	-- Undead: Cannibalize is a free heal when a corpse is nearby.
+	if db.cannibalize and not mounted and ME.Ready("Cannibalize") then
+		list[#list + 1] = { key = "Cannibalize", label = "Cannibalize", need = "health",
+			tip = { "Click to Cannibalize.", "Needs a humanoid or undead corpse within 5 yards." } }
+	end
 	if db.eat and food and not mounted then
 		list[#list + 1] = { key = "ConjureFood", label = "Eat", item = food, need = "health",
 			tip = { "Click to eat." } }
@@ -296,6 +301,7 @@ function Rem:OnLogin()
 		end
 	end)
 	ME:On("PLAYER_EQUIPMENT_CHANGED", queue)
+	ME:On("SPELL_UPDATE_COOLDOWN", queue)
 	ME:On("CVAR_UPDATE", queue)
 	ME:On("PLAYER_LEVEL_UP", queue)
 	C_Timer.NewTicker(3, queue)

@@ -64,6 +64,8 @@ local DEFS = {
 	ConjureManaJade    = { "Conjure Mana Jade", 3552 },
 	ConjureManaCitrine = { "Conjure Mana Citrine", 10053 },
 	ConjureManaRuby    = { "Conjure Mana Ruby", 10054 },
+	-- Racial
+	Cannibalize     = { "Cannibalize", 20577 },
 	-- Forever additions
 	Study           = { "Study", 1302508 },
 	ComprehendScroll = { "Comprehend Scroll", 1296017 },
