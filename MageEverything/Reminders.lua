@@ -115,6 +115,20 @@ local function evaluate()
 				.. "will not appear. Turn them on in the game's Nameplates options (default key: V)." } }
 	end
 
+	-- Reagents for spells you know that have run out.
+	if ME.db.reagents.warn and ME.Reagents then
+		local low = ME.Reagents:Low()
+		if #low > 0 then
+			local tip = { "Out of reagents:" }
+			for _, item in ipairs(low) do
+				tip[#tip + 1] = ("%s: %d  |cff888888(%s)|r"):format(item.name, item.have, item.reagent.use)
+			end
+			tip[#tip + 1] = "Sold by reagent vendors."
+			list[#list + 1] = { key = "SlowFall", label = "Reagents", info = true,
+				icon = "Interface\\Icons\\INV_Misc_Rune_06", tip = tip }
+		end
+	end
+
 	if db.trainer and ME.Training then
 		local missing = ME.Training:Missing()
 		if #missing > 0 then

@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.5.0"] = {
+		"Reagent check: a reminder when you are out of runes, Arcane Powder or Light Feathers for spells you know.",
+		"Optional restocking at vendors (off by default) with a limit per reagent and bag slots kept free. See /mage.",
+		"Removed the spinning orb from the experience bar.",
+	},
 	["1.4.3"] = {
 		"Removed the spinning orb from the leading edge of the experience bar.",
 		"Undead: a Cannibalize button appears out of combat when your health is low.",

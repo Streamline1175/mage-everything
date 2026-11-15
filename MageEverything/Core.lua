@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.4.3"
+ME.version = "1.5.0"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -63,6 +63,8 @@ ME.defaults = {
 		eat = true, eatAt = 0.6, cannibalize = true, wand = true, curse = true, trainer = true, nameplates = true },
 	portals = { enabled = true },
 	qol = { sellJunk = true, autoRepair = true },
+	reagents = { warn = true, warnBelow = 1, autoBuy = false, keepFree = 2,
+		stock = { teleport = 5, portal = 5, powder = 10, feather = 10 } },
 	pos = {},
 }
 

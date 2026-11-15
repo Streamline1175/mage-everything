@@ -102,6 +102,15 @@ local function buildPanel()
 	check(db.reminders, "curse", "Button: Remove Lesser Curse", "Out of combat only; curses are hidden from addons during a fight.")
 	check(db.reminders, "trainer", "Remind: new spells at the trainer", "Also announces them when you level up.")
 
+	check(db.reagents, "warn", "Remind: out of reagents", "Rune of Teleportation, Rune of Portals, Arcane Powder and Light Feather, for spells you know.")
+	slider(db.reagents, "warnBelow", "Remind when fewer than", nil, 1, 10, 1, "%d")
+	check(db.reagents, "autoBuy", "Buy reagents at vendors automatically",
+		"Off by default. Tops each reagent up to its limit below, for spells you know, while enough bag slots stay free.")
+	slider(db.reagents.stock, "teleport", "Keep: Rune of Teleportation", nil, 0, 40, 1, "%d")
+	slider(db.reagents.stock, "portal", "Keep: Rune of Portals", nil, 0, 40, 1, "%d")
+	slider(db.reagents.stock, "powder", "Keep: Arcane Powder", nil, 0, 60, 1, "%d")
+	slider(db.reagents.stock, "feather", "Keep: Light Feather", nil, 0, 40, 1, "%d")
+	slider(db.reagents, "keepFree", "Bag slots to leave free when buying", "Reagents are not bought into the last few empty slots.", 0, 20, 1, "%d")
 	check(db.qol, "sellJunk", "Sell junk at vendors", nil)
 	check(db.qol, "autoRepair", "Repair at vendors", nil)
 
@@ -310,6 +319,7 @@ local function help()
 	print("  /mage diag - show what the client lets the addon read (opens a window to copy from)")
 	print("  /mage profile - per-character settings: list, share, copy, reset")
 	print("  /mage demo - play sample content in every section, for arranging the layout")
+	print("  /mage restock - buy reagents up to your limits from the open vendor")
 	print("  /mage welcome - setup guide")
 	print("  /mage on | off - enable or disable the addon (then /reload)")
 end
@@ -342,6 +352,8 @@ local function slash(msg)
 		ME.Welcome:Toggle()
 	elseif msg == "diag" or msg == "debug" then
 		Options:Diagnose()
+	elseif msg == "restock" then
+		if MerchantFrame and MerchantFrame:IsShown() then ME.Reagents:Restock() else ME:Print("Open a vendor first.") end
 	elseif cmd == "profile" then
 		Options:Profile(arg)
 	elseif cmd == "spec" then
