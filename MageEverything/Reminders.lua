@@ -146,8 +146,15 @@ local function evaluate()
 	-- are always in the row and the game fades them in only when you are low.
 	local mounted = ME.Bool(IsMounted())
 	if db.drink and water and not mounted then
-		list[#list + 1] = { key = "ConjureWater", label = "Drink", item = water, need = "mana",
-			tip = { "Click to drink." } }
+		local low = ME.ManaBelow(db.drinkAt)
+		if low == true then
+			-- Proven low from spell costs: a normal, fully visible button.
+			list[#list + 1] = { key = "ConjureWater", label = "Drink", item = water, tip = { "Click to drink." } }
+		elseif low == nil then
+			-- Cannot be worked out: fall back to the fade-in button.
+			list[#list + 1] = { key = "ConjureWater", label = "Drink", item = water, need = "mana",
+				tip = { "Click to drink." } }
+		end
 	end
 	-- Undead: Cannibalize is a free heal when a corpse is nearby.
 	if db.cannibalize and not mounted and ME.Ready("Cannibalize") then
@@ -180,23 +187,56 @@ end
 -- Shows a drink / eat button only when mana or health is low. The value
 -- itself is hidden from addons, so the game sets the button's opacity from
 -- a threshold curve: fully visible below the threshold, invisible above it.
-local function updateNeed(b)
+-- Sets a region's opacity from the hidden health or mana value: fully
+-- visible below the threshold, invisible above it.
+local function applyNeed(region, need)
 	local db = ME.db.reminders
 	local done = false
-	if b.need == "mana" and UnitPowerPercent then
+	if need == "mana" and UnitPowerPercent then
 		local curve = needCurve(db.drinkAt)
 		local mana = Enum.PowerType and Enum.PowerType.Mana or 0
-		if curve then done = pcall(function() b:SetAlpha(UnitPowerPercent("player", mana, false, curve)) end) end
-	elseif b.need == "health" and UnitHealthPercent then
+		if curve then done = pcall(function() region:SetAlpha(UnitPowerPercent("player", mana, false, curve)) end) end
+	elseif need == "health" and UnitHealthPercent then
 		local curve = needCurve(db.eatAt)
-		if curve then done = pcall(function() b:SetAlpha(UnitHealthPercent("player", true, curve)) end) end
+		if curve then done = pcall(function() region:SetAlpha(UnitHealthPercent("player", true, curve)) end) end
 	end
 	if not done then
 		-- Clients where the values are readable.
-		local f = (b.need == "mana") and manaFraction() or healthFraction()
-		local limit = (b.need == "mana") and db.drinkAt or db.eatAt
-		b:SetAlpha((f and f < limit) and 1 or 0)
+		local f = (need == "mana") and manaFraction() or healthFraction()
+		local limit = (need == "mana") and db.drinkAt or db.eatAt
+		region:SetAlpha((f and f < limit) and 1 or 0)
 	end
+end
+
+local function updateNeed(b) applyNeed(b, b.need) end
+
+-- Tooltip for the fade-in buttons. It is a private frame so that it can be
+-- faded by the same curve as its button: when the button is invisible, so
+-- is its tooltip.
+local needTip
+local function showNeedTip(b)
+	if not needTip then
+		needTip = CreateFrame("Frame", nil, UIParent)
+		needTip:SetFrameStrata("TOOLTIP")
+		local bg = needTip:CreateTexture(nil, "BACKGROUND")
+		bg:SetAllPoints()
+		bg:SetColorTexture(0.03, 0.03, 0.08, 0.95)
+		FX.Border(needTip, 1, 0.5, 0.5, 0.6, 1)
+		needTip.title = needTip:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		needTip.title:SetPoint("TOPLEFT", 8, -7)
+		needTip.body = needTip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		needTip.body:SetPoint("TOPLEFT", needTip.title, "BOTTOMLEFT", 0, -4)
+		needTip.body:SetJustifyH("LEFT")
+		needTip.body:SetWidth(210)
+	end
+	needTip.title:SetText(b.title or "")
+	needTip.body:SetText(table.concat(b.tipLines or {}, "\n"))
+	needTip:SetSize(226, 26 + (ME.Plain(needTip.body:GetStringHeight(), 14) or 14))
+	needTip:ClearAllPoints()
+	needTip:SetPoint("BOTTOM", b, "TOP", 0, 6)
+	needTip.owner = b
+	applyNeed(needTip, b.need)
+	needTip:Show()
 end
 
 local function acquire(i)
@@ -218,6 +258,10 @@ local function acquire(i)
 	b.label = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	b.label:SetPoint("TOP", b, "BOTTOM", 0, -2)
 	b:SetScript("OnEnter", function(self)
+		if self.need and not ME.demo then
+			showNeedTip(self)
+			return
+		end
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
 		GameTooltip:AddLine(self.title or "")
 		if ME.demo then
@@ -229,7 +273,10 @@ local function acquire(i)
 		end
 		GameTooltip:Show()
 	end)
-	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	b:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+		if needTip then needTip:Hide() end
+	end)
 	b:Hide()
 	buttons[i] = b
 	return b
@@ -274,6 +321,7 @@ function Rem:Update()
 			if not b.pulse:IsPlaying() then b.pulse:Play() end
 		end
 	end
+	if needTip then needTip:Hide() end
 	for i = #list + 1, #buttons do
 		buttons[i]:Hide()
 		buttons[i].pulse:Stop()
@@ -316,6 +364,7 @@ function Rem:OnLogin()
 	end)
 	ME:On("PLAYER_EQUIPMENT_CHANGED", queue)
 	ME:On("SPELL_UPDATE_COOLDOWN", queue)
+	ME:On("SPELL_UPDATE_USABLE", queue) -- mana crossing a spell's cost
 	ME:On("CVAR_UPDATE", queue)
 	ME:On("PLAYER_LEVEL_UP", queue)
 	C_Timer.NewTicker(3, queue)
@@ -324,6 +373,9 @@ function Rem:OnLogin()
 		if InCombatLockdown() then return end
 		for _, b in ipairs(buttons) do
 			if b.need and b:IsShown() then updateNeed(b) end
+		end
+		if needTip and needTip:IsShown() and needTip.owner then
+			applyNeed(needTip, needTip.owner.need)
 		end
 	end)
 	queue()

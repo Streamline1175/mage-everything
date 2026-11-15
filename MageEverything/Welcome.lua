@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.5.1"] = {
+		"The Drink button is now properly hidden (no tooltip, no click) until your mana is low.",
+		"Eat and Cannibalize no longer show a tooltip while they are invisible.",
+		"Reagent check with optional restocking at vendors (off by default). See /mage.",
+	},
 	["1.5.0"] = {
 		"Reagent check: a reminder when you are out of runes, Arcane Powder or Light Feathers for spells you know.",
 		"Optional restocking at vendors (off by default) with a limit per reagent and bag slots kept free. See /mage.",

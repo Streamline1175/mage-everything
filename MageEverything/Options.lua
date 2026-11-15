@@ -92,7 +92,8 @@ local function buildPanel()
 	check(db.reminders, "armor", "Remind: armor spell", nil)
 	check(db.reminders, "conjure", "Remind: conjure water and food", nil)
 	check(db.reminders, "gem", "Remind: mana gem", nil)
-	check(db.reminders, "drink", "Button: drink", "Appears when mana is low. Uses your best conjured water.")
+	check(db.reminders, "drink", "Button: drink",
+		"Appears when mana is low. Uses your best conjured water. Mana is hidden from addons, so 'low' is detected when you can no longer afford one of your spells that costs less than the threshold.")
 	check(db.reminders, "eat", "Button: eat", "Appears when health is low. Uses your best conjured food.")
 	check(db.reminders, "cannibalize", "Button: Cannibalize (Undead)", "Appears when health is low and Cannibalize is off cooldown.")
 	slider(db.reminders, "drinkAt", "Show Drink below this mana", nil, 0.1, 0.95, 0.05, "%.2f")
@@ -236,6 +237,11 @@ function Options:Diagnose()
 		p("  casts the addon does not recognise:", #unknown > 0 and table.concat(unknown, ", ") or "none")
 		local extra = ME.Spells.Uncatalogued()
 		p("  spellbook spells the addon has no entry for:", #extra > 0 and table.concat(extra, ", ") or "none")
+	end
+	do
+		local low, share = ME.ManaBelow(ME.db.reminders.drinkAt)
+		p(("  low-mana check from spell costs: %s (detects mana under about %d%% of maximum)"):format(
+			low == nil and "unavailable" or (low and "LOW" or "not low"), (share or 0) * 100))
 	end
 	local assist = C_AssistedCombat and C_AssistedCombat.IsAvailable and ME.Try(C_AssistedCombat.IsAvailable)
 	p("  Blizzard rotation assistant:", yn(assist))

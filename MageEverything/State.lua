@@ -160,6 +160,32 @@ local function castTime(key)
 	return type(info) == "table" and Plain(info.castTime) or nil
 end
 
+-- Is mana below `fraction` of maximum? Mana itself is hidden, but maximum
+-- mana, each spell's cost and "not enough mana for this spell" are not, so
+-- an unaffordable spell that costs no more than the threshold proves it.
+-- Returns true (definitely below), false (not shown to be below), or nil
+-- when this cannot be worked out. The second value is the highest share of
+-- maximum mana this method can detect (the dearest spell under the threshold).
+function ME.ManaBelow(fraction)
+	local max = Plain(UnitPowerMax("player", 0))
+	if not max or max <= 0 then return nil end
+	local limit, best, any = fraction * max, 0, false
+	for key in pairs(ME.Spells.DEFS) do
+		local id = ME.Spell(key)
+		local cost = id and manaCost(key)
+		if cost and cost > 0 then
+			any = true
+			if cost <= limit then
+				if cost > best then best = cost end
+				local _, noMana = C_Spell.IsSpellUsable(id)
+				if Bool(noMana) then return true, cost / max end
+			end
+		end
+	end
+	if not any or best == 0 then return nil end
+	return false, best / max
+end
+
 -- Clearcasting: the next damage spell is free, so every nuke costs 0.
 local function clearcastByCost()
 	local key = ME.FirstKnown("Frostbolt", "Fireball")
