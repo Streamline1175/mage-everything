@@ -113,8 +113,22 @@ local function frost()
 		add("ArcaneMissiles", "Missile Barrage", true)
 	end
 	movingInstants()
-	-- Before Ice Lance exists, Fire Blast is simply free instant damage.
-	if not ME.Known("IceLance") then add("FireBlast", "Instant damage") end
+	if not ME.Known("IceLance") then
+		-- Before Ice Lance exists, Fire Blast is simply free instant damage.
+		add("FireBlast", "Instant damage")
+	elseif S.inCombat and ME.db.hud.frostInstant and not ME.Proc("Frozen") then
+		-- Ice Lance and Fire Blast share an 8 s cooldown. Keep it for the
+		-- shatter window while Frost Nova is available; once Nova is on
+		-- cooldown (or not learned) there is no window coming, so spend it.
+		-- Fire Blast hits harder than Ice Lance on a target that is not frozen.
+		if not ME.Known("FrostNova") or ME.OnCooldown("FrostNova") then
+			if S.aggro then
+				quickInstant("Enemy on you - instant", false)
+			else
+				quickInstant("Instant damage", false)
+			end
+		end
+	end
 	fillerOrWand("Frostbolt", "Filler")
 	if not ME.Known("Frostbolt") then fillerOrWand("Fireball", "Filler") end
 end

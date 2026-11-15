@@ -48,6 +48,8 @@ local function buildPanel()
 	check(db.hud, "showRing", "Animated rune ring", "Rotating ring behind the main icon.")
 	check(db.hud, "onlyWithTarget", "Only with an enemy targeted", "Hide suggestions when nothing hostile is targeted.")
 	check(db.hud, "useWand", "Suggest the wand when out of mana", "Falls back to Shoot when the filler is unaffordable.")
+	check(db.hud, "frostInstant", "Frost: use Fire Blast / Ice Lance between Frost Novas",
+		"They share a cooldown. On: spent as instant damage whenever Frost Nova is on cooldown. Off: saved strictly for frozen targets.")
 	check(db.hud, "fireballFiller", "Fire: Fireball filler instead of Frostfire Bolt",
 		"Frostfire Bolt is the default filler once learned. Deep Fire builds may prefer Fireball.")
 	check(db.hud, "useBlizzardAssist", "Prefer Blizzard's assistant when offered",
@@ -327,6 +329,7 @@ local function help()
 	print("  /mage diag - show what the client lets the addon read (opens a window to copy from)")
 	print("  /mage profile - per-character settings: list, share, copy, reset")
 	print("  /mage demo - play sample content in every section, for arranging the layout")
+	print("  /mage rescan - re-read your spellbook and talents now")
 	print("  /mage restock - buy reagents up to your limits from the open vendor")
 	print("  /mage welcome - setup guide")
 	print("  /mage on | off - enable or disable the addon (then /reload)")
@@ -360,6 +363,12 @@ local function slash(msg)
 		ME.Welcome:Toggle()
 	elseif msg == "diag" or msg == "debug" then
 		Options:Diagnose()
+	elseif msg == "rescan" then
+		ME.Spells:Rebuild()
+		ME.Spec:Update()
+		local n = 0
+		for key in pairs(ME.Spells.DEFS) do if ME.Known(key) then n = n + 1 end end
+		ME:Print(("Rescanned: %d spells recognised. Ice Lance: %s."):format(n, ME.Known("IceLance") and "known" or "not found"))
 	elseif msg == "restock" then
 		if MerchantFrame and MerchantFrame:IsShown() then ME.Reagents:Restock() else ME:Print("Open a vendor first.") end
 	elseif cmd == "profile" then

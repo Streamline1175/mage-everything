@@ -260,4 +260,11 @@ function Spells:OnLogin()
 	ME:On("LEARNED_SPELL_IN_SKILL_LINE", queue)
 	ME:On("PLAYER_LEVEL_UP", queue)
 	ME:On("PLAYER_ENTERING_WORLD", queue)
+	-- Talents can grant spells (Ice Lance, Pyroblast, Arcane Blast...).
+	ME:On("TRAIT_CONFIG_UPDATED", queue)
+	ME:On("PLAYER_TALENT_UPDATE", queue)
+	ME:On("ACTIVE_TALENT_GROUP_CHANGED", queue)
+	ME:On("TRAIT_TREE_CURRENCY_INFO_UPDATED", queue)
+	-- Safety net: the spellbook sometimes settles a moment after the event.
+	ME:On("PLAYER_REGEN_ENABLED", queue)
 end

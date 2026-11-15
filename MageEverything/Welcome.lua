@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.5.3"] = {
+		"Frost: Fire Blast / Ice Lance are now used between Frost Novas instead of being held back (toggle in /mage).",
+		"Spells granted by talents are picked up straight away; /mage rescan forces a re-read.",
+		"Eat and Cannibalize are only offered for a short while after a fight.",
+	},
 	["1.5.2"] = {
 		"Eat and Cannibalize are now only offered for a short while after a fight, and are removed completely otherwise.",
 		"Drink is properly hidden until your mana is low; no hidden button shows a tooltip.",

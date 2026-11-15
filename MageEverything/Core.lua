@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.5.2"
+ME.version = "1.5.3"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -48,7 +48,7 @@ ME.defaults = {
 		enabled = true, scale = 1.0, alphaOOC = 0.55, showQueue = true, showReason = true,
 		showKeybind = true, showBars = true, showRing = true, onlyWithTarget = true,
 		aoeThreshold = 3, useBlizzardAssist = false, useWand = true, fireballFiller = false,
-		wandFinish = true, wandFinishAt = 0.2, sheepTimer = true,
+		wandFinish = true, wandFinishAt = 0.2, sheepTimer = true, frostInstant = true,
 	},
 	reaction = { enabled = true, nova = true, counterspell = true, shields = true, evocation = true,
 		polymorph = true, gem = true },
