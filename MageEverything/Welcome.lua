@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.5.2"] = {
+		"Eat and Cannibalize are now only offered for a short while after a fight, and are removed completely otherwise.",
+		"Drink is properly hidden until your mana is low; no hidden button shows a tooltip.",
+		"Reagent check with optional restocking at vendors (off by default). See /mage.",
+	},
 	["1.5.1"] = {
 		"The Drink button is now properly hidden (no tooltip, no click) until your mana is low.",
 		"Eat and Cannibalize no longer show a tooltip while they are invisible.",

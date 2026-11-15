@@ -98,6 +98,8 @@ local function buildPanel()
 	check(db.reminders, "cannibalize", "Button: Cannibalize (Undead)", "Appears when health is low and Cannibalize is off cooldown.")
 	slider(db.reminders, "drinkAt", "Show Drink below this mana", nil, 0.1, 0.95, 0.05, "%.2f")
 	slider(db.reminders, "eatAt", "Show Eat below this health", nil, 0.1, 0.95, 0.05, "%.2f")
+	slider(db.reminders, "healWindow", "Offer Eat / Cannibalize for this long after a fight (seconds)",
+		"Outside this window the buttons are removed completely, so nothing can be hovered or clicked.", 10, 180, 5, "%d")
 	check(db.reminders, "nameplates", "Warn when enemy nameplates are off", "They are needed to count enemies for AoE suggestions.")
 	check(db.reminders, "wand", "Remind: no wand equipped", nil)
 	check(db.reminders, "curse", "Button: Remove Lesser Curse", "Out of combat only; curses are hidden from addons during a fight.")

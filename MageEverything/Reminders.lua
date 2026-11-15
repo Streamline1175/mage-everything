@@ -58,6 +58,9 @@ local function cursed()
 	return false
 end
 
+-- When the player last left combat, revived or logged in.
+local lastHurtAt = 0
+
 -- Returns a list of reminders. Each has: key (spell key for the icon),
 -- label, and one of: nothing (click casts the spell), item = id (click uses
 -- the item), info = true (not clickable). `tip` adds tooltip lines.
@@ -156,12 +159,17 @@ local function evaluate()
 				tip = { "Click to drink." } }
 		end
 	end
+	-- Healing buttons. Health is hidden from addons, so these can only be
+	-- faded in by the game, and an invisible button still takes clicks. To
+	-- keep that from mattering they exist only for a short while after a
+	-- fight (or after reviving / logging in) and are removed entirely after.
+	local healing = (GetTime() - lastHurtAt) < (db.healWindow or 30)
 	-- Undead: Cannibalize is a free heal when a corpse is nearby.
-	if db.cannibalize and not mounted and ME.Ready("Cannibalize") then
+	if healing and db.cannibalize and not mounted and ME.Ready("Cannibalize") then
 		list[#list + 1] = { key = "Cannibalize", label = "Cannibalize", need = "health",
 			tip = { "Click to Cannibalize.", "Needs a humanoid or undead corpse within 5 yards." } }
 	end
-	if db.eat and food and not mounted then
+	if healing and db.eat and food and not mounted then
 		list[#list + 1] = { key = "ConjureFood", label = "Eat", item = food, need = "health",
 			tip = { "Click to eat." } }
 	end
@@ -348,7 +356,14 @@ function Rem:OnLogin()
 	ME:On("PLAYER_REGEN_DISABLED", function()
 		for _, b in ipairs(buttons) do b:Hide() end
 	end)
-	ME:On("PLAYER_REGEN_ENABLED", queue)
+	local function hurt()
+		lastHurtAt = GetTime()
+		queue()
+	end
+	lastHurtAt = GetTime()
+	ME:On("PLAYER_REGEN_ENABLED", hurt)
+	ME:On("PLAYER_UNGHOST", hurt)
+	ME:On("PLAYER_ALIVE", hurt)
 	ME:On("UNIT_AURA", function(unit) if unit == "player" then queue() end end)
 	ME:On("BAG_UPDATE_DELAYED", queue)
 	ME:On("PLAYER_ENTERING_WORLD", queue)
