@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.5.4"] = {
+		"Rotation display re-laid out: status badges in their own row, and each line of text on its own full-width line, so nothing overlaps.",
+		"Frost: Fire Blast / Ice Lance are used between Frost Novas instead of being held back.",
+		"Spells granted by talents are picked up straight away; /mage rescan forces a re-read.",
+	},
 	["1.5.3"] = {
 		"Frost: Fire Blast / Ice Lance are now used between Frost Novas instead of being held back (toggle in /mage).",
 		"Spells granted by talents are picked up straight away; /mage rescan forces a re-read.",

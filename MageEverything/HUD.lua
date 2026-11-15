@@ -1,8 +1,11 @@
 -- MageEverything: the next-spell HUD.
 --
---   [reaction]  [ MAIN ]  [next][next]        low-health alert floats above
---               reason text
---               health / mana bars
+--     [sheep]    [low health]    [wand]      status badges, each in its own column
+--                 SITUATION
+--   [reaction]    [ MAIN ]    [next][next]
+--        Spell - why it is suggested            one line, full width
+--        Reaction spell: why                    one line, full width
+--              health / mana bars
 local _, ME = ...
 local HUD = ME:NewModule("HUD")
 local FX = ME.FX
@@ -88,15 +91,15 @@ end
 
 local function build()
 	root = CreateFrame("Frame", "MageEverythingHUD", UIParent)
-	root:SetSize(200, 96)
+	root:SetSize(320, 196)
 	ME:MakeMovable(root, "hud", "Mage HUD", "CENTER", 0, -150)
 
 	-- Main suggestion
 	main = makeSlot(root, 60)
-	main:SetPoint("TOP", root, "TOP", 0, -14)
+	main:SetPoint("TOP", root, "TOP", 0, -80)
 	if ME.db.hud.showRing then
-		main.ring = FX.Ring(main, 104, 14)
-		main.ring:SetAlpha(0.55)
+		main.ring = FX.Ring(main, 90, 14)
+		main.ring:SetAlpha(0.4)
 	end
 
 	local sit = root:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -104,7 +107,10 @@ local function build()
 	main.situation = sit
 
 	local reason = root:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	reason:SetPoint("TOP", main, "BOTTOM", 0, -4)
+	reason:SetPoint("TOP", main, "BOTTOM", 0, -6)
+	reason:SetWidth(316)
+	reason:SetWordWrap(false)
+	reason:SetJustifyH("CENTER")
 	main.reason = reason
 
 	-- Next two
@@ -120,7 +126,12 @@ local function build()
 	react = makeSlot(root, 42)
 	react:SetPoint("RIGHT", main, "LEFT", -12, 0)
 	local rl = root:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	rl:SetPoint("TOP", react, "BOTTOM", 0, -3)
+	-- The reaction's text gets its own full-width line under the reason, so
+	-- it can never run into the icons or the reason text.
+	rl:SetPoint("TOP", main, "BOTTOM", 0, -21)
+	rl:SetWidth(316)
+	rl:SetWordWrap(false)
+	rl:SetJustifyH("CENTER")
 	rl:SetTextColor(1, 0.82, 0.2)
 	react.label = rl
 	react.shake = FX.Shake(react)
@@ -128,7 +139,7 @@ local function build()
 
 	-- Polymorph timer: a countdown started by your own cast.
 	sheep = makeSlot(root, 34)
-	sheep:SetPoint("BOTTOM", react, "TOP", 0, 24)
+	sheep:SetPoint("TOP", root, "TOP", -84, -18)
 	sheep.tex:SetTexture(ME.SpellIcon("Polymorph"))
 	sheep.time = sheep.top:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	sheep.time:SetPoint("CENTER", 0, 0)
@@ -145,7 +156,7 @@ local function build()
 	-- health curve, like the low-health alert), to save mana on the kill.
 	wand = CreateFrame("Frame", nil, root)
 	wand:SetSize(40, 40)
-	wand:SetPoint("BOTTOM", queue[1], "TOP", 10, 24)
+	wand:SetPoint("TOP", root, "TOP", 84, -15)
 	wand:SetAlpha(0)
 	wand.icon = makeSlot(wand, 34)
 	wand.icon:SetPoint("CENTER")
@@ -159,26 +170,26 @@ local function build()
 	-- Low-health alert. Its visibility is an alpha value computed by the
 	-- client from a health curve, so it works while health itself is hidden.
 	panicFrame = CreateFrame("Frame", nil, root)
-	panicFrame:SetSize(52, 52)
-	panicFrame:SetPoint("BOTTOM", main, "TOP", 0, 22)
+	panicFrame:SetSize(40, 40)
+	panicFrame:SetPoint("TOP", root, "TOP", 0, -15)
 	panicFrame:SetAlpha(0)
-	local pi = makeSlot(panicFrame, 46)
+	local pi = makeSlot(panicFrame, 34)
 	pi:SetPoint("CENTER")
 	pi.border:SetColor(1, 0.1, 0.1, 1)
 	local pg = panicFrame:CreateTexture(nil, "BACKGROUND")
-	pg:SetPoint("TOPLEFT", -10, 10)
-	pg:SetPoint("BOTTOMRIGHT", 10, -10)
+	pg:SetPoint("TOPLEFT", -5, 5)
+	pg:SetPoint("BOTTOMRIGHT", 5, -5)
 	pg:SetColorTexture(1, 0, 0, 0.35)
 	FX.Pulse(pg, 1, 0.2, 0.35):Play()
-	local pt = panicFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	pt:SetPoint("BOTTOM", panicFrame, "TOP", 0, 4)
+	local pt = panicFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	pt:SetPoint("BOTTOM", panicFrame, "TOP", 0, 3)
 	pt:SetText("|cffff3030LOW HEALTH|r")
 	panicFrame.icon = pi
 
 	-- Health / mana bars (status bars accept hidden values directly).
 	bars = CreateFrame("Frame", nil, root)
 	bars:SetSize(150, 11)
-	bars:SetPoint("TOP", reason, "BOTTOM", 0, -4)
+	bars:SetPoint("TOP", main, "BOTTOM", 0, -38)
 	local function bar(r, g, b, y)
 		local sb = CreateFrame("StatusBar", nil, bars)
 		sb:SetSize(150, 4)
@@ -354,7 +365,7 @@ local function render()
 	if re then
 		local was = react.key
 		setSlot(react, re)
-		react.label:SetText(re.reason or "")
+		react.label:SetText(ME.SpellLabel(re.key) .. ": " .. (re.reason or ""))
 		if was ~= re.key then
 			react.shake:Stop()
 			react.shake:Play()
