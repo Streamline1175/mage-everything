@@ -165,9 +165,16 @@ local function evaluate()
 	-- fight (or after reviving / logging in) and are removed entirely after.
 	local healing = (GetTime() - lastHurtAt) < (db.healWindow or 30)
 	-- Undead: Cannibalize is a free heal when a corpse is nearby.
-	if healing and db.cannibalize and not mounted and ME.Ready("Cannibalize") then
+	-- It needs a humanoid or undead corpse within 5 yards: shown only while
+	-- you target such a corpse in range (or one whose type the game hides).
+	local corpse = db.cannibalize and not mounted and ME.Known("Cannibalize") and ME.CannibalizeCorpse()
+	if healing and corpse ~= false and corpse ~= nil and ME.Ready("Cannibalize") then
 		list[#list + 1] = { key = "Cannibalize", label = "Cannibalize", need = "health",
-			tip = { "Click to Cannibalize.", "Needs a humanoid or undead corpse within 5 yards." } }
+			tip = { "Click to Cannibalize your targeted corpse." } }
+	elseif healing and corpse == nil and db.cannibalize and ME.Known("Cannibalize") and ME.Ready("Cannibalize")
+		and ME.Bool(UnitIsDead("target")) then
+		list[#list + 1] = { key = "Cannibalize", label = "Cannibalize?", need = "health",
+			tip = { "Click to Cannibalize.", "The game hides this corpse's type: it only works on humanoids and undead." } }
 	end
 	if healing and db.eat and food and not mounted then
 		list[#list + 1] = { key = "ConjureFood", label = "Eat", item = food, need = "health",
@@ -378,11 +385,12 @@ function Rem:OnLogin()
 		end
 	end)
 	ME:On("PLAYER_EQUIPMENT_CHANGED", queue)
+	ME:On("PLAYER_TARGET_CHANGED", queue)
 	ME:On("SPELL_UPDATE_COOLDOWN", queue)
 	ME:On("SPELL_UPDATE_USABLE", queue) -- mana crossing a spell's cost
 	ME:On("CVAR_UPDATE", queue)
 	ME:On("PLAYER_LEVEL_UP", queue)
-	C_Timer.NewTicker(3, queue)
+	C_Timer.NewTicker(1, queue) -- corpse range changes as you move
 	-- Keep the drink / eat glow in step with health and mana.
 	C_Timer.NewTicker(0.5, function()
 		if InCombatLockdown() then return end

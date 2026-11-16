@@ -281,6 +281,11 @@ local function reaction()
 		and ME.Bool(UnitExists("focus")) and ME.Bool(UnitCanAttack("player", "focus")) then
 		return { key = "Counterspell", reason = "Interrupt your FOCUS", glow = true }
 	end
+	-- Dampen / Amplify Magic before the pull, chosen by the target.
+	if not S.inCombat and r.magicWard then
+		local ward = ME.MagicWardAdvice()
+		if ward then return ward end
+	end
 	-- Ice Barrier also raises Frost damage, so keep it up from before the pull.
 	if r.shields and barrierDown() and (S.inCombat or ME.spec == "FROST") then
 		return { key = "IceBarrier", reason = ME.spec == "FROST" and "Shield + Frost damage" or "Shield" }
@@ -304,7 +309,7 @@ local function reaction()
 	if r.polymorph and ME.Ready("Polymorph") and not S.moving then
 		local left = ME.SheepRemaining()
 		if left == 0 and S.enemies >= 2 and GetTime() - S.sheepBrokeAt < 6 then
-			return { key = "Polymorph", reason = "Sheep broke - Polymorph again", glow = true }
+			return { key = "Polymorph", reason = "Sheep broke - click the Sheep button", glow = true }
 		end
 		if left > 0 and left < 6 and S.enemies >= 2 then
 			return { key = "Polymorph", reason = ("Re-sheep (%ds left)"):format(math.ceil(left)) }
@@ -320,6 +325,25 @@ local function reaction()
 		end
 		if r.evocation and ME.Ready("Evocation") then
 			return { key = "Evocation", reason = "Out of mana" }
+		end
+	end
+	return nil
+end
+
+-- Dampen Magic lowers magic damage taken (and healing received); Amplify
+-- Magic raises both. Solo, Dampen is the one that helps, against casters.
+-- In a group with a healer, Amplify helps against enemies that do not cast.
+function ME.MagicWardAdvice()
+	if not S.hasTarget then return nil end
+	local dampen = ME.Remembered("Dampen") or ME.HasBuff("DampenMagic") == true
+	local amplify = ME.Remembered("Amplify") or ME.HasBuff("AmplifyMagic") == true
+	if ME.TargetIsCaster() then
+		if not dampen and ME.Ready("DampenMagic") then
+			return { key = "DampenMagic", reason = amplify and "Caster - swap Amplify for Dampen" or "Caster - less spell damage" }
+		end
+	elseif ME.HealerInGroup() then
+		if not amplify and not dampen and ME.Ready("AmplifyMagic") then
+			return { key = "AmplifyMagic", reason = "Melee enemy - stronger heals on you" }
 		end
 	end
 	return nil

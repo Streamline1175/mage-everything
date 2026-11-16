@@ -214,7 +214,12 @@ local function arcaneBlastByCost()
 	return math.max(0, math.min(4, math.floor(c / abBase + 0.5) - 1))
 end
 
+-- Talents that make each proc possible (Forever 1.60.1 data).
+local PROC_TALENT = { Clearcasting = 11213, MissileBarrage = 400588, FingersOfFrost = 400647, HeatingUp = 400624 }
+
 function ME.Proc(name)
+	local talent = PROC_TALENT[name]
+	if talent and ME.TalentRank(talent, 1) == 0 then return false end
 	if name == "Clearcasting" then
 		return ME.HasBuff("Clearcasting") == true or clearcastByCost()
 	elseif name == "MissileBarrage" then
@@ -239,6 +244,8 @@ function ME.ArcaneBlastStacks()
 end
 
 function ME.HeatingUpStacks()
+	-- Heating Up is a Fire talent: without it there are no stacks at all.
+	if ME.TalentRank(400624, 1) == 0 then return 0 end
 	if S.overlay.Pyroblast then return 3 end
 	local has, aura = ME.HasBuff("HeatingUp")
 	local n = has and stacksOf(aura)
@@ -293,18 +300,35 @@ local function endSheep(broke, why)
 end
 ME.EndSheep = endSheep
 
-local function startSheep(duration)
-	local t = now()
-	S.sheepStart, S.sheepDur = t, duration
-	S.sheepUnit, S.sheepSignal, S.sheepCalibrateAt = nil, nil, t + 1
-	-- Which nameplate is the enemy just sheeped (the current target)?
+local function nameplateFor(token)
+	if not Bool(UnitExists(token)) then return nil end
 	for i = 1, 40 do
 		local unit = "nameplate" .. i
-		if Bool(UnitExists(unit)) and Bool(UnitIsUnit(unit, "target")) then
-			S.sheepUnit = unit
-			break
-		end
+		if Bool(UnitExists(unit)) and Bool(UnitIsUnit(unit, token)) then return unit end
 	end
+end
+
+local function sheepAlive(unit)
+	return unit and Bool(UnitExists(unit)) and not Bool(UnitIsDead(unit))
+end
+
+-- Set by the re-sheep button just before it casts (see SheepButton.lua).
+ME.resheepClickAt, ME.resheepMode = 0, nil
+
+local function startSheep(duration)
+	local t = now()
+	local unit
+	if t - ME.resheepClickAt < 1.5 then
+		-- Cast from the re-sheep button: it went to the focus, or to the
+		-- enemy that was sheeped before.
+		if ME.resheepMode == "focus" then unit = nameplateFor("focus") end
+		if not unit and sheepAlive(S.lastSheepUnit) then unit = S.lastSheepUnit end
+	end
+	-- Otherwise the enemy targeted when the cast began.
+	unit = unit or S.castTargetPlate or nameplateFor("target")
+	S.sheepStart, S.sheepDur = t, duration
+	S.sheepUnit, S.lastSheepUnit = unit, unit
+	S.sheepSignal, S.sheepCalibrateAt, S.sheepTargetSince = nil, t + 1, nil
 	ME:Fire("SHEEP", duration)
 end
 
@@ -322,7 +346,11 @@ local function watchSheep()
 		-- If it still shows one, this signal cannot be trusted for this sheep.
 		if now() >= S.sheepCalibrateAt then S.sheepSignal = not hasTarget end
 	elseif S.sheepSignal and hasTarget then
-		endSheep(true, "it is attacking again")
+		-- Must hold for a full second: a flicker is not a broken sheep.
+		S.sheepTargetSince = S.sheepTargetSince or now()
+		if now() - S.sheepTargetSince >= 1.0 then endSheep(true, "it is attacking again") end
+	else
+		S.sheepTargetSince = nil
 	end
 end
 
@@ -332,6 +360,49 @@ function ME.HasWand()
 		rangedSlot = (GetInventorySlotInfo and Try(GetInventorySlotInfo, "RANGEDSLOT")) or 18
 	end
 	return GetInventoryItemID("player", rangedSlot) ~= nil
+end
+
+-- Is the target a spellcaster? Its power type is readable: casters use
+-- mana. A cast seen from it this fight also counts.
+function ME.TargetIsCaster()
+	if not S.hasTarget then return false end
+	if S.targetIsCaster then return true end
+	local pType = Plain(Try(UnitPowerType, "target"))
+	return pType == 0
+end
+
+local HEALERS = { PRIEST = true, DRUID = true, SHAMAN = true, PALADIN = true }
+-- A healing class in the group (Amplify Magic boosts their heals on you).
+function ME.HealerInGroup()
+	if not (IsInGroup and IsInGroup()) then return false end
+	local prefix = (IsInRaid and IsInRaid()) and "raid" or "party"
+	for i = 1, (GetNumGroupMembers() or 0) do
+		local _, class = UnitClass(prefix .. i)
+		if HEALERS[Plain(class)] then return true end
+	end
+	return false
+end
+
+-- Cannibalize needs a humanoid or undead corpse within 5 yards. Returns
+-- true / false, or nil when the corpse type is hidden from addons.
+local CANNIBAL_TYPES = { [6] = true, [7] = true } -- creature type IDs: Undead, Humanoid
+function ME.CannibalizeCorpse()
+	if not (Bool(UnitExists("target")) and Bool(UnitIsDead("target"))) then return false end
+	local hidden = false
+	if not Bool(UnitIsPlayer("target")) then -- player corpses always qualify
+		local _, typeID = Try(UnitCreatureType, "target")
+		typeID = Plain(typeID)
+		if typeID ~= nil and not CANNIBAL_TYPES[typeID] then return false end
+		hidden = (typeID == nil)
+		S.corpseTypeHidden = hidden
+	end
+	-- Range: the spell's own check if it answers, otherwise the ~10 yard check.
+	local id = ME.Spell("Cannibalize")
+	local r = id and Plain(Try(C_Spell.IsSpellInRange, id, "target"))
+	if r == nil then r = Plain(Try(CheckInteractDistance, "target", 3)) end
+	if r == false then return false end
+	if hidden then return nil end
+	return true
 end
 
 local GEMS = { 8008, 8007, 5513, 5514 } -- Mana Ruby, Citrine, Jade, Agate
@@ -430,6 +501,7 @@ local BUFF_MEMORY = {
 	ArcanePower = { "ArcanePower", 15 },
 	-- Presence of Mind has no duration: it lasts until the next cast-time spell.
 	PresenceOfMind = { "PoM", 600 }, Evocation = { "Evocation", 8 },
+	DampenMagic = { "Dampen", 600 }, AmplifyMagic = { "Amplify", 600 },
 }
 
 local function onPlayerCast(key)
@@ -438,18 +510,35 @@ local function onPlayerCast(key)
 
 	local b = BUFF_MEMORY[key]
 	if b then ME.Remember(b[1], b[2]) end
+	-- Dampen and Amplify Magic replace each other.
+	if key == "DampenMagic" then ME.Forget("Amplify") elseif key == "AmplifyMagic" then ME.Forget("Dampen") end
 
 	if key:find("^Polymorph") then
 		local id = ME.Spell(key)
 		startSheep((id and SHEEP_SECONDS[id]) or 50)
-	elseif (SINGLE_TARGET[key]) and S.sheepUnit and S.sheepDur > 0
-		and Bool(UnitIsUnit("target", S.sheepUnit)) then
-		-- Any damage breaks Polymorph.
-		endSheep(true, "you hit it")
+	elseif SINGLE_TARGET[key] and S.sheepUnit and S.sheepDur > 0 then
+		-- Any damage breaks Polymorph. What counts is the target when the cast
+		-- began (you may have tabbed away mid-cast); instants use the target now.
+		local onSheep
+		if S.castStartKey == key and now() - S.castStartAt < 10 then
+			onSheep = S.castOnSheep
+		else
+			onSheep = Bool(UnitIsUnit("target", S.sheepUnit))
+		end
+		if onSheep then endSheep(true, "you hit it") end
 	end
+	S.castStartKey = nil
 	if key == "FrostNova" then
-		S.frozenExpire, S.frozenHits = t + 8, 2
-		ME:Fire("MEM_PROC", "Frozen")
+		-- Frost Nova reaches about 10 yards; a target further away is not frozen.
+		local near = S.hasTarget and Plain(Try(CheckInteractDistance, "target", 3))
+		if near == nil and S.hasTarget then near = S.aggro end
+		if near then
+			-- Damage can break the root, so allow a single shatter spell.
+			S.frozenExpire, S.frozenHits = t + 8, 1
+			ME:Fire("MEM_PROC", "Frozen")
+		else
+			S.frozenHits = 0
+		end
 	elseif DAMAGE[key] and S.frozenHits > 0 then
 		-- Damage breaks the root: allow a couple of shatter casts, then stop.
 		S.frozenHits = S.frozenHits - 1
@@ -497,8 +586,8 @@ function State:OnLogin()
 	end)
 
 	ME:On("PLAYER_TARGET_CHANGED", function()
-		S.targetCasting = false
-		S.scorchStacks, S.wcStacks = 0, 0
+		S.targetCasting, S.targetIsCaster = false, false
+		S.scorchStacks, S.wcStacks, S.frozenHits = 0, 0, 0
 		State:Refresh(true)
 		ME:Fire("TARGET")
 	end)
@@ -527,8 +616,13 @@ function State:OnLogin()
 		end
 		if unit == "player" then
 			S.casting = ME.KeyForSpell(spellID) or "?"
+			-- Remember what was targeted as the cast began.
+			S.castStartKey, S.castStartAt = S.casting, now()
+			S.castOnSheep = S.sheepUnit ~= nil and Bool(UnitIsUnit("target", S.sheepUnit))
+			S.castTargetPlate = (S.casting:find("^Polymorph")) and nameplateFor("target") or nil
 		elseif unit == "target" then
 			S.targetCasting = true
+			S.targetIsCaster = true
 			seen.targetCasts = seen.targetCasts + 1
 		elseif unit == "focus" then
 			S.focusCasting = true
@@ -545,6 +639,8 @@ function State:OnLogin()
 		if unit == "player" then
 			S.channeling = ME.KeyForSpell(spellID) or "?"
 			S.casting = S.channeling
+			S.castStartKey, S.castStartAt = S.channeling, now()
+			S.castOnSheep = S.sheepUnit ~= nil and Bool(UnitIsUnit("target", S.sheepUnit))
 		elseif unit == "target" then
 			S.targetCasting = true
 		elseif unit == "focus" then

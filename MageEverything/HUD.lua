@@ -58,7 +58,7 @@ end
 ---------------------------------------------------------------------------
 -- Construction
 ---------------------------------------------------------------------------
-local root, main, queue, react, panicFrame, bars, lowMana, sheep, wand
+local root, main, queue, react, panicFrame, bars, lowMana, wand
 local healthCurve, manaCurve, wandCurve
 
 local function makeSlot(parent, size)
@@ -137,20 +137,7 @@ local function build()
 	react.shake = FX.Shake(react)
 	react:Hide()
 
-	-- Polymorph timer: a countdown started by your own cast.
-	sheep = makeSlot(root, 34)
-	sheep:SetPoint("TOP", root, "TOP", -84, -18)
-	sheep.tex:SetTexture(ME.SpellIcon("Polymorph"))
-	sheep.time = sheep.top:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	sheep.time:SetPoint("CENTER", 0, 0)
-	sheep.time:SetTextColor(1, 1, 1)
-	local sl = root:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	sl:SetPoint("BOTTOM", sheep, "TOP", 0, 2)
-	sl:SetText("Sheep")
-	sheep.label = sl
-	sheep.pulse = FX.Pulse(sheep, 1, 0.35, 0.35)
-	sheep:Hide()
-	sl:Hide()
+	-- (The Polymorph timer is its own clickable button: SheepButton.lua.)
 
 	-- Wand finisher: fades in when the target is nearly dead (shown by a
 	-- health curve, like the low-health alert), to save mana on the kill.
@@ -383,26 +370,6 @@ local function render()
 		panicFrame.icon.keybind:SetText(ME.Keybind(pk) or "")
 	end
 
-	-- Polymorph timer
-	local left = ME.demo and 23 or ME.SheepRemaining()
-	if db.sheepTimer and left > 0 then
-		sheep.time:SetText(("%d"):format(math.ceil(left)))
-		if not sheep:IsShown() then
-			sheep:Show()
-			sheep.label:Show()
-		end
-		if left < 6 then
-			sheep.border:SetColor(1, 0.15, 0.15, 1)
-			if not sheep.pulse:IsPlaying() then sheep.pulse:Play() end
-		else
-			sheep.border:SetColor(0.9, 0.5, 0.9, 1)
-			sheep.pulse:Stop()
-		end
-	elseif sheep:IsShown() then
-		sheep.pulse:Stop()
-		sheep:Hide()
-		sheep.label:Hide()
-	end
 	if wand.icon.kb ~= true then
 		wand.icon.keybind:SetText(ME.Keybind("Shoot") or "")
 	end
@@ -440,9 +407,5 @@ function HUD:OnLogin()
 	ME:Listen("SPELLS_UPDATED", queueBinds)
 
 	ME:On("SPELL_UPDATE_COOLDOWN", function() cdDirty = true end)
-	ME:Listen("SHEEP", function(duration)
-		pcall(sheep.cd.SetCooldown, sheep.cd, GetTime(), duration)
-		sheep.cd:SetHideCountdownNumbers(true)
-	end)
 	ME:Listen("SPEC_CHANGED", function() HUD:ApplyTheme() end)
 end

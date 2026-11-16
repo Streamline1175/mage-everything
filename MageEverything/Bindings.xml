@@ -1,0 +1,4 @@
+<Bindings>
+	<Binding name="CLICK MageEverythingSheep:LeftButton" header="MAGEEVERYTHING" category="ADDONS"/>
+	<Binding name="CLICK MageEverythingSheepFocus:LeftButton" category="ADDONS"/>
+</Bindings>

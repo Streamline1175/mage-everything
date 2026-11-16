@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.5.4"
+ME.version = "1.6.0"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -48,10 +48,10 @@ ME.defaults = {
 		enabled = true, scale = 1.0, alphaOOC = 0.55, showQueue = true, showReason = true,
 		showKeybind = true, showBars = true, showRing = true, onlyWithTarget = true,
 		aoeThreshold = 3, useBlizzardAssist = false, useWand = true, fireballFiller = false,
-		wandFinish = true, wandFinishAt = 0.2, sheepTimer = true, frostInstant = true,
+		wandFinish = true, wandFinishAt = 0.2, sheepTimer = true, markSheep = true, frostInstant = true,
 	},
 	reaction = { enabled = true, nova = true, counterspell = true, shields = true, evocation = true,
-		polymorph = true, gem = true },
+		polymorph = true, gem = true, magicWard = true },
 	panic = { enabled = true, health = 0.35, mana = 0.20 },
 	cooldowns = { enabled = true, scale = 1.0 },
 	alerts = { enabled = true, sound = true, scale = 1.0 },
@@ -173,6 +173,7 @@ end)
 ME.movers = {}
 
 function ME:RestorePosition(f, key, point, x, y)
+	if InCombatLockdown() and f:IsProtected() then return end
 	local p = self.db.pos[key]
 	f:ClearAllPoints()
 	if p then
@@ -219,7 +220,11 @@ function ME:MakeMovable(f, key, label, point, x, y, shiftDrag)
 	txt:SetText((label or key) .. " - drag")
 	tab:SetPoint("TOPLEFT", txt, "TOPLEFT", -4, 2)
 	tab:SetPoint("BOTTOMRIGHT", txt, "BOTTOMRIGHT", 4, -2)
-	h:SetScript("OnDragStart", function() f:StartMoving() end)
+	h:SetScript("OnDragStart", function()
+		-- Secure buttons (the sheep button) cannot be moved during a fight.
+		if InCombatLockdown() and f:IsProtected() then return end
+		f:StartMoving()
+	end)
 	h:SetScript("OnDragStop", function() savePosition(f) end)
 	h:SetScript("OnMouseUp", function() savePosition(f) end)
 	h:Hide()

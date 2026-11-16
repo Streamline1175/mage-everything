@@ -65,6 +65,10 @@ local function buildPanel()
 	check(db.reaction, "evocation", "Reaction: Evocation", "When the filler spell is unaffordable.")
 	check(db.reaction, "gem", "Reaction: mana gem", "Suggested before Evocation when out of mana.")
 	check(db.reaction, "polymorph", "Reaction: Polymorph", "Sheep the add when a second enemy joins, and re-sheep before the timer ends.")
+	check(db.hud, "markSheep", "Mark the remembered sheep with a moon",
+		"The 'Polymorph target and remember it' keybind also puts a moon marker on it.")
+	check(db.reaction, "magicWard", "Reaction: Dampen / Amplify Magic before a pull",
+		"Dampen against casters. Amplify only in a group with a healer, against enemies that do not cast.")
 	check(db.hud, "sheepTimer", "Polymorph timer", "Countdown from your own Polymorph cast. Ends early when the sheep is seen to break or die.")
 	check(db.hud, "wandFinish", "Wand finisher badge", "Shows when your target is nearly dead, to save mana on the kill.")
 	slider(db.hud, "wandFinishAt", "Wand finisher threshold", "Target health at which the wand badge appears.", 0.05, 0.5, 0.05, "%.2f")
@@ -197,8 +201,10 @@ function Options:Diagnose()
 			tostring(ready), why and (" (" .. why .. ")") or ""))
 		p("  wand equipped:", yn(ME.HasWand()), "target casting seen:", yn(ME.state.targetCasting))
 		local st = ME.state
+		p("  target looks like a caster:", yn(ME.TargetIsCaster()), "healer in group:", yn(ME.HealerInGroup()),
+			"corpse usable for Cannibalize:", yn(ME.CannibalizeCorpse()), "corpse type hidden:", yn(st.corpseTypeHidden))
 		p(("  sheep: %ds left, following %s, target signal %s, last break: %s"):format(ME.SheepRemaining(),
-			tostring(st.sheepUnit or "nothing"),
+			tostring(st.sheepUnit or ("nothing (re-sheep uses " .. tostring(st.lastSheepUnit or "previous target") .. ")")),
 			st.sheepSignal == nil and "not checked" or (st.sheepSignal and "usable" or "not usable"),
 			st.sheepBrokeWhy or "none"))
 	end

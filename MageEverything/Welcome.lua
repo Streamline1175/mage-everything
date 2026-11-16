@@ -10,6 +10,14 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.6.0"] = {
+		"Sheep button: click (or bind a key) to re-sheep in combat. Key Bindings > AddOns > Mage Everything.",
+		"Fewer false 'sheep broke' alerts: tabbing away mid-cast no longer counts as hitting the sheep.",
+		"Frost Nova: shatter suggestions only when the target was in range, and only for one spell.",
+		"Heating Up, Missile Barrage, Clearcasting and Fingers of Frost need their talent before they are suggested.",
+		"Cannibalize only appears while you target a usable corpse in range.",
+		"Dampen / Amplify Magic suggested before a pull, chosen by whether the enemy is a caster.",
+	},
 	["1.5.4"] = {
 		"Rotation display re-laid out: status badges in their own row, and each line of text on its own full-width line, so nothing overlaps.",
 		"Frost: Fire Blast / Ice Lance are used between Frost Novas instead of being held back.",
