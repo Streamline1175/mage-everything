@@ -82,6 +82,7 @@ local function buildPanel()
 
 	check(db.alerts, "enabled", "Proc banners", "Animated banners for procs, level-ups and new spells.")
 	check(db.alerts, "sound", "Proc sound", nil)
+	check(db.alerts, "herbs", "Banner when you can gather a new herb", nil)
 	slider(db.alerts, "scale", "Banner scale", nil, 0.6, 2, 0.05, "%.2f")
 
 	check(db.xp, "enabled", "Mage experience bar", "Spec-themed XP bar.")
@@ -343,6 +344,7 @@ local function help()
 	print("  /mage diag - show what the client lets the addon read (opens a window to copy from)")
 	print("  /mage profile - per-character settings: list, share, copy, reset")
 	print("  /mage demo - play sample content in every section, for arranging the layout")
+	print("  /mage herbs - Herbalism tracker: skill, next herb, timeline and herbs gathered")
 	print("  /mage rescan - re-read your spellbook and talents now")
 	print("  /mage restock - buy reagents up to your limits from the open vendor")
 	print("  /mage welcome - setup guide")
@@ -377,6 +379,8 @@ local function slash(msg)
 		ME.Welcome:Toggle()
 	elseif msg == "diag" or msg == "debug" then
 		Options:Diagnose()
+	elseif msg == "herbs" or msg == "herb" or msg == "herbalism" then
+		ME.Herbs:Toggle()
 	elseif msg == "rescan" then
 		ME.Spells:Rebuild()
 		ME.Spec:Update()

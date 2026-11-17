@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.6.2"
+ME.version = "1.7.0"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ ME.defaults = {
 		polymorph = true, gem = true, magicWard = true },
 	panic = { enabled = true, health = 0.35, mana = 0.20 },
 	cooldowns = { enabled = true, scale = 1.0 },
-	alerts = { enabled = true, sound = true, scale = 1.0 },
+	alerts = { enabled = true, sound = true, scale = 1.0, herbs = true },
 	xp = {
 		enabled = true, hideBlizzard = true, width = 520, height = 20, showText = true, showDetail = true,
 		showQuestXP = true, effects = true,

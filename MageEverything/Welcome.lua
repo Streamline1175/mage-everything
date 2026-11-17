@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.7.0"] = {
+		"Herbalism tracker (/mage herbs): skill bar, next herb to unlock, a timeline of every herb and how many you've gathered.",
+		"Banner when a skill-up lets you gather a new herb.",
+		"Herb and ore icon sparkles, and turns green when in reach.",
+	},
 	["1.6.2"] = {
 		"Herb and ore icon now sparkles: bigger icon, turning starburst, rising sparkles; turns green when in reach.",
 		"Sheep button: click (or bind a key) to re-sheep in combat. Key Bindings > AddOns > Mage Everything.",
@@ -359,6 +364,7 @@ local function buildPages()
 		"  /mage unlock  |  lock   move the frames (or open Edit Mode; Shift-drag the XP bar)",
 		"  /mage demo              sample content everywhere, for arranging the layout",
 		"  /mage portals           teleport and portal menu",
+		"  /mage herbs             Herbalism tracker",
 		"  /mage spec fire         force a rotation (auto, arcane, fire, frost)",
 		"  /mage diag              show what the game lets the addon read (copyable)",
 		"  /mage profile           per-character settings",

@@ -35,6 +35,7 @@ Restart the game (or `/reload`). The addon only activates on a Mage.
 | **Portal menu** | `/mage portals`: left-click a city to teleport, right-click for a portal. |
 | **Vendors** | Sells junk and repairs automatically. |
 | **Herbs and ore** | Optional (off by default): turns on the game's interact icons so the herb or ore node in front of you is marked, then adds sparkle effects around that icon: a bigger copy of it, a turning starburst and rune ring, and rising sparkles. Gold until you can gather it, then green with your Interact key shown. Turning it off restores your previous settings. |
+| **Herbalism tracker** | `/mage herbs`: your Herbalism skill bar with a mark at every herb unlock, the next training rank and the level it needs, a card for the next herb you can unlock with a progress bar, and a vertical timeline of all 28 herb nodes showing the skill each needs, its skill-up colour for you right now (orange, yellow, green, grey) and how many you have gathered. Rare extras (Frilled Lichen, Rosecap, Stranglevine, seeds and so on) are counted too. Node data is from the Forever game data and the Warcraft Wiki. |
 | **Reagents** | A reminder when you are out of Rune of Teleportation, Rune of Portals, Arcane Powder or Light Feather for spells you know. Optional restocking at vendors (off by default): a limit per reagent, and a number of bag slots it will always leave free. `/mage restock` does it on demand. |
 
 ### Rotations
