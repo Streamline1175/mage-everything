@@ -123,6 +123,11 @@ local function buildPanel()
 	check(db.qol, "nodeIcons", "Show an icon over herbs and ore in front of you",
 		"Uses the game's Interact Key system (it also enables the Interact Key). Turning this off restores your previous settings.")
 	slider(db.qol, "nodeRange", "Herb / ore icon range (yards)", "How far ahead the game looks for a node to mark.", 5, 30, 1, "%d")
+	check(db.qol, "nodeFX", "Sparkle effects on the herb / ore icon",
+		"A bigger icon with a turning starburst and rising sparkles; gold until you are close enough to gather, then green.")
+	slider(db.qol, "nodeFXSize", "Herb / ore effect size", nil, 20, 72, 2, "%d")
+	check(db.qol, "nodeFXObjectsOnly", "Effects on objects only (not NPCs)", "Herbs, ore, chests and quest objects; not vendors or quest givers.")
+	check(db.qol, "nodeFXSound", "Sound when a new node is marked", nil)
 	check(db.qol, "sellJunk", "Sell junk at vendors", nil)
 	check(db.qol, "autoRepair", "Repair at vendors", nil)
 

@@ -10,6 +10,10 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.6.2"] = {
+		"Herb and ore icon now sparkles: bigger icon, turning starburst, rising sparkles; turns green when in reach.",
+		"Sheep button: click (or bind a key) to re-sheep in combat. Key Bindings > AddOns > Mage Everything.",
+	},
 	["1.6.1"] = {
 		"Optional: an icon over the herb or ore node in front of you (off by default, see /mage).",
 		"Sheep button: click (or bind a key) to re-sheep in combat. Key Bindings > AddOns > Mage Everything.",

@@ -34,7 +34,7 @@ Restart the game (or `/reload`). The addon only activates on a Mage.
 | **Trainer** | When a level unlocks new spells or ranks, a banner and a chat line list them. |
 | **Portal menu** | `/mage portals`: left-click a city to teleport, right-click for a portal. |
 | **Vendors** | Sells junk and repairs automatically. |
-| **Herbs and ore** | Optional (off by default): turns on the game's interact icons so the herb or ore node in front of you gets a floating icon, with an adjustable range. Turning it off restores your previous settings. |
+| **Herbs and ore** | Optional (off by default): turns on the game's interact icons so the herb or ore node in front of you is marked, then adds sparkle effects around that icon: a bigger copy of it, a turning starburst and rune ring, and rising sparkles. Gold until you can gather it, then green with your Interact key shown. Turning it off restores your previous settings. |
 | **Reagents** | A reminder when you are out of Rune of Teleportation, Rune of Portals, Arcane Powder or Light Feather for spells you know. Optional restocking at vendors (off by default): a limit per reagent, and a number of bag slots it will always leave free. `/mage restock` does it on demand. |
 
 ### Rotations
