@@ -120,6 +120,9 @@ local function buildPanel()
 	slider(db.reagents.stock, "powder", "Keep: Arcane Powder", nil, 0, 60, 1, "%d")
 	slider(db.reagents.stock, "feather", "Keep: Light Feather", nil, 0, 40, 1, "%d")
 	slider(db.reagents, "keepFree", "Bag slots to leave free when buying", "Reagents are not bought into the last few empty slots.", 0, 20, 1, "%d")
+	check(db.qol, "nodeIcons", "Show an icon over herbs and ore in front of you",
+		"Uses the game's Interact Key system (it also enables the Interact Key). Turning this off restores your previous settings.")
+	slider(db.qol, "nodeRange", "Herb / ore icon range (yards)", "How far ahead the game looks for a node to mark.", 5, 30, 1, "%d")
 	check(db.qol, "sellJunk", "Sell junk at vendors", nil)
 	check(db.qol, "autoRepair", "Repair at vendors", nil)
 

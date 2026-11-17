@@ -10,6 +10,11 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.6.1"] = {
+		"Optional: an icon over the herb or ore node in front of you (off by default, see /mage).",
+		"Sheep button: click (or bind a key) to re-sheep in combat. Key Bindings > AddOns > Mage Everything.",
+		"Fewer false procs and freezes; Cannibalize only with a usable corpse; Dampen / Amplify by target.",
+	},
 	["1.6.0"] = {
 		"Sheep button: click (or bind a key) to re-sheep in combat. Key Bindings > AddOns > Mage Everything.",
 		"Fewer false 'sheep broke' alerts: tabbing away mid-cast no longer counts as hitting the sheep.",

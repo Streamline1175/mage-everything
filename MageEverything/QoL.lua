@@ -29,3 +29,56 @@ function QoL:OnLogin()
 		end
 	end)
 end
+
+---------------------------------------------------------------------------
+-- Gathering node icons. Addons cannot add effects to herbs or ore in the
+-- world, but the game's own "interact" system can float an icon over the
+-- herb, ore or object in front of you. This switches that on (and the
+-- Interact Key with it), and puts your previous settings back when off.
+---------------------------------------------------------------------------
+local NODE_CVARS = { "softTargetInteract", "SoftTargetIconGameObject", "SoftTargetIconInteract",
+	"SoftTargetLowPriorityIcons", "SoftTargetInteractRange" }
+
+local function getCVar(name)
+	local get = (C_CVar and C_CVar.GetCVar) or GetCVar
+	return get and ME.Try(get, name)
+end
+local function setCVar(name, value)
+	local set = (C_CVar and C_CVar.SetCVar) or SetCVar
+	if set then pcall(set, name, tostring(value)) end
+end
+
+function QoL:ApplyNodeIcons()
+	local db = ME.db.qol
+	if InCombatLockdown() then
+		ME:AfterCombat(function() QoL:ApplyNodeIcons() end)
+		return
+	end
+	if db.nodeIcons then
+		if not db.savedNodeCVars then
+			db.savedNodeCVars = {}
+			for _, name in ipairs(NODE_CVARS) do db.savedNodeCVars[name] = getCVar(name) end
+		end
+		local any = (Enum.SoftTargetEnableFlags and Enum.SoftTargetEnableFlags.Any) or 3
+		setCVar("softTargetInteract", any)
+		setCVar("SoftTargetIconGameObject", 1)
+		setCVar("SoftTargetIconInteract", 1)
+		setCVar("SoftTargetLowPriorityIcons", 1)
+		setCVar("SoftTargetInteractRange", db.nodeRange or 20)
+	elseif db.savedNodeCVars then
+		for name, value in pairs(db.savedNodeCVars) do
+			if value ~= nil then setCVar(name, value) end
+		end
+		db.savedNodeCVars = nil
+	end
+end
+
+function QoL:ApplySettings()
+	self:ApplyNodeIcons()
+end
+
+local login = QoL.OnLogin
+function QoL:OnLogin()
+	login(self)
+	if ME.db.qol.nodeIcons then self:ApplyNodeIcons() end
+end
