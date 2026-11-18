@@ -10,6 +10,10 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.7.1"] = {
+		"Dampen / Amplify Magic badge on the HUD for every targeted enemy, and an in-combat prompt against casters.",
+		"Herbalism tracker (/mage herbs): skill bar, next herb, a timeline of every herb and how many you've gathered.",
+	},
 	["1.7.0"] = {
 		"Herbalism tracker (/mage herbs): skill bar, next herb to unlock, a timeline of every herb and how many you've gathered.",
 		"Banner when a skill-up lets you gather a new herb.",

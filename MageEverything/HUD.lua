@@ -58,7 +58,7 @@ end
 ---------------------------------------------------------------------------
 -- Construction
 ---------------------------------------------------------------------------
-local root, main, queue, react, panicFrame, bars, lowMana, wand
+local root, main, queue, react, panicFrame, bars, lowMana, wand, ward
 local healthCurve, manaCurve, wandCurve
 
 local function makeSlot(parent, size)
@@ -138,6 +138,22 @@ local function build()
 	react:Hide()
 
 	-- (The Polymorph timer is its own clickable button: SheepButton.lua.)
+
+	-- Magic ward badge: which of Dampen / Amplify Magic suits this target.
+	ward = CreateFrame("Frame", nil, root)
+	ward:SetSize(40, 40)
+	ward:SetPoint("TOP", root, "TOP", -84, -15)
+	ward.icon = makeSlot(ward, 34)
+	ward.icon:SetPoint("CENTER")
+	ward.icon.cd:Hide()
+	ward.label = ward:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	ward.label:SetPoint("BOTTOM", ward.icon, "TOP", 0, 2)
+	ward.check = ward.icon.top:CreateTexture(nil, "OVERLAY")
+	ward.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+	ward.check:SetSize(22, 22)
+	ward.check:SetPoint("BOTTOMRIGHT", 4, -4)
+	ward.pulse = FX.Pulse(ward.icon, 1, 0.4, 0.5)
+	ward:Hide()
 
 	-- Wand finisher: fades in when the target is nearly dead (shown by a
 	-- health curve, like the low-health alert), to save mana on the kill.
@@ -368,6 +384,47 @@ local function render()
 		panicFrame.icon.key = pk
 		panicFrame.icon.tex:SetTexture(ME.SpellIcon(pk))
 		panicFrame.icon.keybind:SetText(ME.Keybind(pk) or "")
+	end
+
+	-- Magic ward badge
+	local wst = (ME.db.reaction.magicWard and not ME.demo) and ME.MagicWardState() or nil
+	if ME.demo then wst = { want = "DampenMagic", reason = "Caster" } end
+	if wst then
+		local key = wst.want or "DampenMagic"
+		if ward.key ~= key then
+			ward.key = key
+			ward.icon.tex:SetTexture(ME.SpellIcon(key))
+			ward.icon.keybind:SetText(ME.Keybind(key) or "")
+		end
+		local short = (key == "DampenMagic") and "Dampen" or "Amplify"
+		if not wst.want then
+			-- Neither helps: say so, quietly.
+			ward.icon.tex:SetDesaturated(true)
+			ward:SetAlpha(0.45)
+			ward.check:Hide()
+			ward.pulse:Stop()
+			ward.label:SetText("|cff999999No ward|r")
+			ward.icon.border:SetColor(0.3, 0.3, 0.3, 1)
+		elseif wst.have == wst.want then
+			ward.icon.tex:SetDesaturated(false)
+			ward:SetAlpha(0.8)
+			ward.check:Show()
+			ward.pulse:Stop()
+			ward.label:SetText("|cff59ff73" .. short .. "|r")
+			ward.icon.border:SetColor(0.3, 0.9, 0.4, 1)
+		else
+			ward.icon.tex:SetDesaturated(false)
+			ward:SetAlpha(1)
+			ward.check:Hide()
+			if not ward.pulse:IsPlaying() then ward.pulse:Play() end
+			ward.label:SetText("|cffffd100" .. short .. "!|r")
+			ward.icon.border:SetColor(1, 0.82, 0.2, 1)
+		end
+		ward.reason = wst.reason
+		ward:Show()
+	elseif ward:IsShown() then
+		ward.pulse:Stop()
+		ward:Hide()
 	end
 
 	if wand.icon.kb ~= true then

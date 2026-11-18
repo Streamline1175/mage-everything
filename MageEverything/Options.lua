@@ -67,8 +67,8 @@ local function buildPanel()
 	check(db.reaction, "polymorph", "Reaction: Polymorph", "Sheep the add when a second enemy joins, and re-sheep before the timer ends.")
 	check(db.hud, "markSheep", "Mark the remembered sheep with a moon",
 		"The 'Polymorph target and remember it' keybind also puts a moon marker on it.")
-	check(db.reaction, "magicWard", "Reaction: Dampen / Amplify Magic before a pull",
-		"Dampen against casters. Amplify only in a group with a healer, against enemies that do not cast.")
+	check(db.reaction, "magicWard", "Dampen / Amplify Magic badge and prompts",
+		"A badge on the HUD for the targeted enemy: Dampen against casters, Amplify only in a group with a healer against enemies that do not cast, 'No ward' otherwise. Also prompted before a pull, and in combat against casters.")
 	check(db.hud, "sheepTimer", "Polymorph timer", "Countdown from your own Polymorph cast. Ends early when the sheep is seen to break or die.")
 	check(db.hud, "wandFinish", "Wand finisher badge", "Shows when your target is nearly dead, to save mana on the kill.")
 	slider(db.hud, "wandFinishAt", "Wand finisher threshold", "Target health at which the wand badge appears.", 0.05, 0.5, 0.05, "%.2f")

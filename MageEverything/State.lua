@@ -629,7 +629,22 @@ function State:OnLogin()
 			seen.focusCasts = seen.focusCasts + 1
 		end
 	end)
-	ME:On("UNIT_AURA", function(unit) if unit == "player" then seen.auraEvents = seen.auraEvents + 1 end end)
+	ME:On("UNIT_AURA", function(unit)
+		if unit ~= "player" then return end
+		seen.auraEvents = seen.auraEvents + 1
+		-- Out of combat buffs are readable: carry Dampen / Amplify into the
+		-- next fight (where they are hidden) as remembered timers.
+		for key, mem in pairs({ DampenMagic = "Dampen", AmplifyMagic = "Amplify" }) do
+			local has, aura = ME.HasBuff(key)
+			if has == true then
+				local left = aura and Plain(aura.expirationTime)
+				left = (left and left > 0) and (left - now()) or 600
+				ME.Remember(mem, math.max(1, left))
+			elseif has == false then
+				ME.Forget(mem)
+			end
+		end
+	end)
 	ME:On("PLAYER_FOCUS_CHANGED", function() S.focusCasting = false end)
 	-- The sheep's nameplate went away: it died or is out of sight.
 	ME:On("NAME_PLATE_UNIT_REMOVED", function(unit)

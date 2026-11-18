@@ -299,6 +299,11 @@ local function reaction()
 		and not ME.Remembered("ManaShield") and ME.HasBuff("ManaShield") ~= true and ME.Ready("ManaShield") then
 		return { key = "ManaShield", reason = "Shield" }
 	end
+	-- Fighting a caster without Dampen Magic.
+	if r.magicWard then
+		local ward = ME.MagicWardAdvice()
+		if ward and ward.key == "DampenMagic" then return ward end
+	end
 	-- Cold Snap: a hard fight with Frost Nova and Ice Barrier both spent.
 	if r.shields and S.aggro and (S.targetElite or S.enemies >= 2) and ME.Ready("ColdSnap")
 		and ME.OnCooldown("FrostNova") and (not ME.Known("IceBarrier") or ME.OnCooldown("IceBarrier")) then
@@ -333,20 +338,33 @@ end
 -- Dampen Magic lowers magic damage taken (and healing received); Amplify
 -- Magic raises both. Solo, Dampen is the one that helps, against casters.
 -- In a group with a healer, Amplify helps against enemies that do not cast.
-function ME.MagicWardAdvice()
-	if not S.hasTarget then return nil end
+-- What Dampen / Amplify Magic should be on you for the current target:
+--   want: "DampenMagic", "AmplifyMagic" or nil (neither helps)
+--   have: the one that is up, or nil
+--   reason: short explanation
+function ME.MagicWardState()
+	if not S.hasTarget or not (ME.Known("DampenMagic") or ME.Known("AmplifyMagic")) then return nil end
 	local dampen = ME.Remembered("Dampen") or ME.HasBuff("DampenMagic") == true
 	local amplify = ME.Remembered("Amplify") or ME.HasBuff("AmplifyMagic") == true
+	local st = { have = (dampen and "DampenMagic") or (amplify and "AmplifyMagic") or nil }
 	if ME.TargetIsCaster() then
-		if not dampen and ME.Ready("DampenMagic") then
-			return { key = "DampenMagic", reason = amplify and "Caster - swap Amplify for Dampen" or "Caster - less spell damage" }
-		end
+		st.want, st.reason = "DampenMagic", amplify and "Caster - swap Amplify for Dampen" or "Caster - less spell damage"
 	elseif ME.HealerInGroup() then
-		if not amplify and not dampen and ME.Ready("AmplifyMagic") then
-			return { key = "AmplifyMagic", reason = "Melee enemy - stronger heals on you" }
-		end
+		st.want, st.reason = "AmplifyMagic", "Melee enemy - stronger heals on you"
+	else
+		st.reason = "Melee enemy - no ward needed solo"
 	end
-	return nil
+	if st.want and not ME.Known(st.want) then st.want = nil end
+	return st
+end
+
+-- A suggestion when the wanted ward is missing (nil otherwise).
+function ME.MagicWardAdvice()
+	local st = ME.MagicWardState()
+	if not st or not st.want or st.have == st.want then return nil end
+	if st.want == "AmplifyMagic" and st.have then return nil end -- keep an existing Dampen
+	if not ME.Ready(st.want) then return nil end
+	return { key = st.want, reason = st.reason }
 end
 
 -- Best emergency button for the low-health alert (shown via a health curve).
