@@ -24,23 +24,46 @@ local function enabled()
 	return db.nodeIcons and db.nodeFX
 end
 
--- The nameplate frame of the soft-interact target, or nil.
+-- The unit token a nameplate frame is showing.
+local function plateUnit(plate)
+	local u = rawget(plate, "unitToken") or rawget(plate, "namePlateUnitToken")
+	if not u and type(plate.GetUnit) == "function" then u = ME.Try(plate.GetUnit, plate) end
+	return u
+end
+
+local lastFind = "not looked yet"
+-- The nameplate frame of the soft-interact target, or nil. Herbs and ore do
+-- not "exist" as units for addons (UnitExists is false for objects), so this
+-- does what Blizzard's nameplate code does: walk the nameplates and ask
+-- which one is the soft-interact target.
 local function softInteractPlate()
-	if not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then return nil end
-	if not ME.Bool(UnitExists("softinteract")) and not ME.Bool(ME.Try(UnitIsGameObject, "softinteract")) then
+	if not C_NamePlate then lastFind = "no nameplate API" return nil end
+	local isObject = ME.Bool(ME.Try(UnitIsGameObject, "softinteract"))
+	if not ME.Bool(UnitExists("softinteract")) and not isObject then
+		lastFind = "nothing marked"
 		return nil
 	end
-	if ME.db.qol.nodeFXObjectsOnly and not ME.Bool(ME.Try(UnitIsGameObject, "softinteract")) then
+	if ME.db.qol.nodeFXObjectsOnly and not isObject then
+		lastFind = "marked thing is not an object"
 		return nil -- an NPC, not a herb / ore / chest
 	end
-	local plate = ME.Try(C_NamePlate.GetNamePlateForUnit, "softinteract")
-	if plate then return plate end
-	for i = 1, 60 do
-		local unit = "nameplate" .. i
-		if ME.Bool(UnitExists(unit)) and ME.Bool(UnitIsUnit(unit, "softinteract")) then
-			return ME.Try(C_NamePlate.GetNamePlateForUnit, unit)
+	if C_NamePlate.GetNamePlates then
+		for _, plate in pairs(ME.Try(C_NamePlate.GetNamePlates) or {}) do
+			local u = plateUnit(plate)
+			if u and ME.Bool(UnitIsUnit(u, "softinteract")) then
+				lastFind = "found (" .. tostring(u) .. ")"
+				return plate
+			end
 		end
 	end
+	local plate = C_NamePlate.GetNamePlateForUnit and ME.Try(C_NamePlate.GetNamePlateForUnit, "softinteract")
+	if plate then lastFind = "found (direct)" return plate end
+	lastFind = "marked, but its nameplate is hidden from addons"
+	return nil
+end
+
+function Nodes:Status()
+	return lastFind, current ~= nil
 end
 
 local function build()
@@ -190,8 +213,18 @@ function Nodes:OnLogin()
 	ME:On("NAME_PLATE_UNIT_ADDED", function() Nodes:Refresh() end)
 	ME:On("NAME_PLATE_UNIT_REMOVED", function() Nodes:Refresh() end)
 	local since = 0
+	local retry = 0
 	C_Timer.NewTicker(0.15, function()
-		if not current or not fxFrame:IsShown() then return end
+		if not current or not fxFrame:IsShown() then
+			-- Not attached: look again now and then, in case the nameplate
+			-- appeared after the events fired.
+			retry = retry + 1
+			if retry >= 2 and enabled() then
+				retry = 0
+				Nodes:Refresh()
+			end
+			return
+		end
 		-- The nameplate may have been reused or hidden.
 		if not current:IsShown() then Nodes:Refresh() return end
 		local inReach = ME.Bool(ME.Try(UnitIsInInteractRange, "softinteract"))

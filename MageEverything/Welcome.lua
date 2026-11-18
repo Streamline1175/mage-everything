@@ -10,6 +10,10 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.7.2"] = {
+		"Fixed: the herb and ore sparkles could fail to find the node's icon. /mage diag reports on them.",
+		"Dampen / Amplify Magic badge on the HUD for every targeted enemy.",
+	},
 	["1.7.1"] = {
 		"Dampen / Amplify Magic badge on the HUD for every targeted enemy, and an in-combat prompt against casters.",
 		"Herbalism tracker (/mage herbs): skill bar, next herb, a timeline of every herb and how many you've gathered.",

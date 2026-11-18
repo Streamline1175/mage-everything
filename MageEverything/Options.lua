@@ -245,6 +245,11 @@ function Options:Diagnose()
 				"| Fingers of Frost", level(ME.Try(C_Secrets.GetSpellAuraSecrecy, 400669)))
 		end
 	end
+	if ME.Nodes then
+		local find, attached = ME.Nodes:Status()
+		p(("  herb/ore icons: %s, sparkles: %s, last search: %s, attached: %s"):format(
+			ME.db.qol.nodeIcons and "on" or "off", ME.db.qol.nodeFX and "on" or "off", find, yn(attached)))
+	end
 	-- What the game has actually sent this session.
 	do
 		local seen = ME.seen
