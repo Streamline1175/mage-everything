@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.7.2"
+ME.version = "1.7.3"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -317,17 +317,47 @@ end
 -- Profiles: each character gets its own settings (copied from the first
 -- character's on first login). /mage profile lists, shares and copies them.
 ---------------------------------------------------------------------------
+-- Realm names come back with spaces on some logins and without on others
+-- ("CAMWOW US2 Realm 7 PvE" / "CAMWOWUS2Realm7PvE"), so strip them.
+local function squash(realm)
+	return (tostring(realm or ""):gsub("[%s%-']", ""))
+end
+
 local function characterKey()
 	local name = UnitName("player")
 	local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName and GetRealmName()) or ""
 	if type(name) ~= "string" or name == "" or issecretvalue(name) then return nil end
-	return name .. "-" .. tostring(realm or "")
+	return name .. "-" .. squash(realm), name
+end
+
+-- Earlier versions could file one character under two keys. Fold any such
+-- duplicate into the canonical key: keep the original settings, keep the
+-- duplicate profile listed, and add up herb counts.
+local function reconcile(root, key, name)
+	local canonRealm = key:sub(#name + 2)
+	for k in pairs(CopyTable(root.chars)) do
+		local n, r = k:match("^(.-)%-(.*)$")
+		if k ~= key and n == name and squash(r) == canonRealm then
+			if not root.chars[key] then
+				root.chars[key] = root.chars[k]
+			else
+				ME.profileNotice = ("Restored your original settings. A second copy made by an earlier version is kept as profile '%s' (/mage profile copy %s to use it instead)."):format(root.chars[k], root.chars[k])
+			end
+			root.chars[k] = nil
+			if root.herbs and root.herbs[k] then
+				root.herbs[key] = root.herbs[key] or {}
+				for id, c in pairs(root.herbs[k]) do root.herbs[key][id] = (root.herbs[key][id] or 0) + c end
+				root.herbs[k] = nil
+			end
+		end
+	end
 end
 
 function ME:SelectProfile()
 	local root = self.root
-	local key = characterKey()
+	local key, charName = characterKey()
 	if not key then return false end
+	reconcile(root, key, charName)
 	self.charKey = key
 	local name = root.chars[key]
 	if not name or not root.profiles[name] then
@@ -400,5 +430,6 @@ ME:On("PLAYER_LOGIN", function()
 	ME.db.locked = true
 	pcall(ME.HookEditMode, ME)
 	ME:Fire("READY")
+	if ME.profileNotice then ME:Print(ME.profileNotice) ME.profileNotice = nil end
 	ME:Print(("v%s loaded. /mage for options."):format(ME.version))
 end)

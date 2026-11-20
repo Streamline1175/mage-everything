@@ -186,7 +186,8 @@ end
 function Spells.Uncatalogued()
 	local list = {}
 	for name, hit in pairs(book) do
-		if not nameToKey[name] and not hit.passive and hit.id ~= 6603 then -- 6603 = Attack
+		if not nameToKey[name] and not hit.passive and hit.id ~= 6603 -- 6603 = Attack
+			and not name:find("^Teleport") and not name:find("^Portal") then -- portal menu
 			list[#list + 1] = name .. "=" .. tostring(hit.id)
 		end
 	end

@@ -10,6 +10,10 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.7.3"] = {
+		"Fixed: some logins started you on a fresh settings profile. Your original settings and herb counts are restored.",
+		"Herb sparkles also work when the game's own Interact Icons setting is on.",
+	},
 	["1.7.2"] = {
 		"Fixed: the herb and ore sparkles could fail to find the node's icon. /mage diag reports on them.",
 		"Dampen / Amplify Magic badge on the HUD for every targeted enemy.",

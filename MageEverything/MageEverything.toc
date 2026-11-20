@@ -2,7 +2,7 @@
 ## Title: |cff69ccf0Mage|r Everything
 ## Notes: Personal mage companion for WoW Forever: next-spell HUD, proc alerts, cooldowns, spec-themed XP bar, reminders and portals.
 ## Author: Personal use
-## Version: 1.7.2
+## Version: 1.7.3
 ## Category: Combat
 ## IconTexture: Interface\AddOns\MageEverything\Media\Icon
 ## SavedVariables: MageEverythingDB

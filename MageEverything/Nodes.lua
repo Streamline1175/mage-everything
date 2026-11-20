@@ -19,9 +19,18 @@ local current -- the nameplate the effects are attached to
 local OUT_OF_REACH = { 1, 0.78, 0.25 }
 local IN_REACH = { 0.35, 1, 0.45 }
 
+-- On when our herb/ore option is on, or the game's own "Interact Icons:
+-- Show All" setting already shows icons on objects.
+local function gameShowsObjectIcons()
+	local get = (C_CVar and C_CVar.GetCVar) or GetCVar
+	local v = get and ME.Try(get, "SoftTargetIconGameObject")
+	return v ~= nil and not ME.issecret(v) and tostring(v) == "1"
+end
+Nodes.GameShowsObjectIcons = gameShowsObjectIcons
+
 local function enabled()
 	local db = ME.db.qol
-	return db.nodeIcons and db.nodeFX
+	return db.nodeFX and (db.nodeIcons or gameShowsObjectIcons())
 end
 
 -- The unit token a nameplate frame is showing.

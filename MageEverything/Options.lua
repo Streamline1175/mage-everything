@@ -247,8 +247,9 @@ function Options:Diagnose()
 	end
 	if ME.Nodes then
 		local find, attached = ME.Nodes:Status()
-		p(("  herb/ore icons: %s, sparkles: %s, last search: %s, attached: %s"):format(
-			ME.db.qol.nodeIcons and "on" or "off", ME.db.qol.nodeFX and "on" or "off", find, yn(attached)))
+		p(("  herb/ore icons: addon option %s, game setting %s, sparkles: %s, last search: %s, attached: %s"):format(
+			ME.db.qol.nodeIcons and "on" or "off", ME.Nodes.GameShowsObjectIcons() and "on" or "off",
+			ME.db.qol.nodeFX and "on" or "off", find, yn(attached)))
 	end
 	-- What the game has actually sent this session.
 	do
