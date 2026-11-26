@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.7.3"
+ME.version = "1.8.0"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -59,11 +59,12 @@ ME.defaults = {
 		enabled = true, hideBlizzard = true, width = 520, height = 20, showText = true, showDetail = true,
 		showQuestXP = true, effects = true,
 	},
+	xpfeed = { enabled = true, fade = 30, scale = 1.0 },
 	reminders = { enabled = true, intellect = true, armor = true, conjure = true, gem = true, drink = true, drinkAt = 0.45,
 		eat = true, eatAt = 0.6, cannibalize = true, healWindow = 30, wand = true, curse = true, trainer = true, nameplates = true },
 	portals = { enabled = true },
 	qol = { sellJunk = true, autoRepair = true, nodeIcons = false, nodeRange = 20,
-		nodeFX = true, nodeFXSize = 36, nodeFXObjectsOnly = true, nodeFXSound = false },
+		nodeFX = true, nodeFXSize = 36, nodeFXObjectsOnly = true, nodeFXSound = false, nodeBadge = true },
 	reagents = { warn = true, warnBelow = 1, autoBuy = false, keepFree = 2,
 		stock = { teleport = 5, portal = 5, powder = 10, feather = 10 } },
 	pos = {},

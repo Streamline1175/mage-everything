@@ -10,6 +10,10 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.8.0"] = {
+		"Live XP feed beside the XP bar: every gain with its source, rested part and share of the level. Hover for session totals.",
+		"Herb icons: settings are re-applied if the game resets them, and a sparkling on-screen alert appears if a node's icon is unavailable.",
+	},
 	["1.7.3"] = {
 		"Fixed: some logins started you on a fresh settings profile. Your original settings and herb counts are restored.",
 		"Herb sparkles also work when the game's own Interact Icons setting is on.",

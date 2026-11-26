@@ -87,6 +87,9 @@ local function buildPanel()
 
 	check(db.xp, "enabled", "Mage experience bar", "Spec-themed XP bar.")
 	check(db.xp, "hideBlizzard", "Hide the default XP bar (needs /reload)", "Also hides the default reputation bar.")
+	check(db.xpfeed, "enabled", "Live XP feed", "A line for every XP gain: kills, quests, discoveries, gathering. Hover it for session totals.")
+	slider(db.xpfeed, "fade", "XP feed lines fade after (seconds)", nil, 5, 120, 5, "%d")
+	slider(db.xpfeed, "scale", "XP feed scale", nil, 0.6, 2, 0.05, "%.2f")
 	check(db.xp, "showText", "XP bar text", nil)
 	check(db.xp, "showDetail", "XP bar details line", "Rested, XP per hour, time to level and kills, above the bar.")
 	check(db.xp, "showQuestXP", "Show XP from completed quests", "Gold overlay for quests ready to hand in.")
@@ -129,6 +132,8 @@ local function buildPanel()
 	slider(db.qol, "nodeFXSize", "Herb / ore effect size", nil, 20, 72, 2, "%d")
 	check(db.qol, "nodeFXObjectsOnly", "Effects on objects only (not NPCs)", "Herbs, ore, chests and quest objects; not vendors or quest givers.")
 	check(db.qol, "nodeFXSound", "Sound when a new node is marked", nil)
+	check(db.qol, "nodeBadge", "Herb alert badge when the node's icon is unavailable",
+		"If the game does not give the node a usable icon, show a sparkling badge on screen instead (movable).")
 	check(db.qol, "sellJunk", "Sell junk at vendors", nil)
 	check(db.qol, "autoRepair", "Repair at vendors", nil)
 
@@ -250,6 +255,8 @@ function Options:Diagnose()
 		p(("  herb/ore icons: addon option %s, game setting %s, sparkles: %s, last search: %s, attached: %s"):format(
 			ME.db.qol.nodeIcons and "on" or "off", ME.Nodes.GameShowsObjectIcons() and "on" or "off",
 			ME.db.qol.nodeFX and "on" or "off", find, yn(attached)))
+		p("  interact settings:", ME.QoL:NodeCVarReport(),
+			"| node marked now:", yn(ME.Bool(ME.Try(UnitIsGameObject, "softinteract"))))
 	end
 	-- What the game has actually sent this session.
 	do

@@ -77,8 +77,31 @@ function QoL:ApplySettings()
 	self:ApplyNodeIcons()
 end
 
+-- The values the option wants, for re-checking and for /mage diag.
+function QoL:NodeCVarReport()
+	local parts = {}
+	for _, name in ipairs(NODE_CVARS) do parts[#parts + 1] = name .. "=" .. tostring(getCVar(name)) end
+	return table.concat(parts, " ")
+end
+
 local login = QoL.OnLogin
 function QoL:OnLogin()
 	login(self)
 	if ME.db.qol.nodeIcons then self:ApplyNodeIcons() end
+	-- A patch or the game's options can reset these: put them back while the
+	-- option is on.
+	ME:On("PLAYER_ENTERING_WORLD", function()
+		if ME.db.qol.nodeIcons then QoL:ApplyNodeIcons() end
+	end)
+	local watched = {}
+	for _, n in ipairs(NODE_CVARS) do watched[n:lower()] = true end
+	local pending
+	ME:On("CVAR_UPDATE", function(name)
+		if not ME.db.qol.nodeIcons or type(name) ~= "string" or not watched[name:lower()] or pending then return end
+		pending = true
+		C_Timer.After(1, function()
+			pending = false
+			QoL:ApplyNodeIcons()
+		end)
+	end)
 end

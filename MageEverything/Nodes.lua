@@ -71,6 +71,50 @@ local function softInteractPlate()
 	return nil
 end
 
+-- Fallback when the marked node has no usable nameplate: a badge on screen
+-- with the node's icon, so you still know a node is in front of you.
+local badge
+local function buildBadge()
+	badge = CreateFrame("Frame", "MageEverythingNodeBadge", UIParent)
+	badge:SetSize(44, 44)
+	ME:MakeMovable(badge, "nodebadge", "Herb alert", "CENTER", 0, 120)
+	local burstTex = badge:CreateTexture(nil, "BACKGROUND")
+	burstTex:SetTexture(STAR)
+	burstTex:SetBlendMode("ADD")
+	burstTex:SetSize(110, 110)
+	burstTex:SetPoint("CENTER")
+	local ag = burstTex:CreateAnimationGroup()
+	ag:SetLooping("REPEAT")
+	local r = ag:CreateAnimation("Rotation")
+	r:SetDegrees(360); r:SetDuration(6)
+	ag:Play()
+	badge.burst = burstTex
+	badge.icon = badge:CreateTexture(nil, "ARTWORK")
+	badge.icon:SetAllPoints()
+	badge.text = badge:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	badge.text:SetPoint("TOP", badge, "BOTTOM", 0, -4)
+	badge.pulse = FX.Pulse(badge.icon, 1, 0.5, 0.6)
+	badge.pulse:Play()
+	badge:Hide()
+end
+
+local function updateBadge(show)
+	if not badge then return end
+	if not (show and ME.db.qol.nodeBadge) then
+		if ME.db.locked and not ME.demo then badge:Hide() end
+		return
+	end
+	if not ME.Try(SetUnitCursorTexture, badge.icon, "softinteract", nil, true) then
+		badge.icon:SetTexture("Interface\\Icons\\INV_Misc_Flower_02")
+	end
+	local inReach = ME.Bool(ME.Try(UnitIsInInteractRange, "softinteract"))
+	local c = inReach and IN_REACH or OUT_OF_REACH
+	badge.burst:SetVertexColor(c[1], c[2], c[3])
+	local key = GetBindingKey("INTERACTTARGET")
+	badge.text:SetText(inReach and ("|cff59ff73Node in reach" .. (key and (" - press " .. key) or "") .. "|r") or "|cffffc840Node ahead|r")
+	badge:Show()
+end
+
 function Nodes:Status()
 	return lastFind, current ~= nil
 end
@@ -208,8 +252,11 @@ end
 
 function Nodes:Refresh()
 	if not fxFrame then return end
-	if not enabled() then self:Detach() return end
+	if not enabled() then self:Detach() updateBadge(false) return end
 	local plate = softInteractPlate()
+	-- A node is marked but its nameplate is missing or hidden: use the badge.
+	local marked = ME.Bool(ME.Try(UnitIsGameObject, "softinteract"))
+	updateBadge(marked and not plate)
 	if not plate then self:Detach() return end
 	local ok = pcall(self.Attach, self, plate)
 	if not ok then self:Detach() end
@@ -217,6 +264,11 @@ end
 
 function Nodes:OnLogin()
 	build()
+	buildBadge()
+	-- Show the badge while frames are unlocked, so it can be placed.
+	ME:Listen("LOCK_CHANGED", function(locked)
+		if not locked then badge:Show() else Nodes:Refresh() end
+	end)
 	self:ApplySettings()
 	ME:On("PLAYER_SOFT_INTERACT_CHANGED", function() Nodes:Refresh() end)
 	ME:On("NAME_PLATE_UNIT_ADDED", function() Nodes:Refresh() end)
@@ -226,7 +278,8 @@ function Nodes:OnLogin()
 	C_Timer.NewTicker(0.15, function()
 		if not current or not fxFrame:IsShown() then
 			-- Not attached: look again now and then, in case the nameplate
-			-- appeared after the events fired.
+			-- appeared after the events fired (this also keeps the badge's
+			-- in-reach colour current).
 			retry = retry + 1
 			if retry >= 2 and enabled() then
 				retry = 0
