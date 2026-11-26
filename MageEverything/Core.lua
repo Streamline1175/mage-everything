@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.8.2"
+ME.version = "1.8.3"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -329,7 +329,11 @@ local function characterKey()
 	local name = UnitName("player")
 	local realm = (GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName and GetRealmName()) or ""
 	if type(name) ~= "string" or name == "" or issecretvalue(name) then return nil end
-	return name .. "-" .. squash(realm), name
+	local r = squash(realm)
+	-- Early in loading the realm can come back blank: never file settings
+	-- under a blank realm (that made a fresh "Name-" profile).
+	if r == "" then return nil, name end
+	return name .. "-" .. r, name
 end
 
 -- Earlier versions could file one character under two keys. Fold any such
@@ -339,7 +343,8 @@ local function reconcile(root, key, name)
 	local canonRealm = key:sub(#name + 2)
 	for k in pairs(CopyTable(root.chars)) do
 		local n, r = k:match("^(.-)%-(.*)$")
-		if k ~= key and n == name and squash(r) == canonRealm then
+		-- Same character: same realm written differently, or a blank realm.
+		if k ~= key and n == name and (squash(r) == canonRealm or squash(r) == "") then
 			if not root.chars[key] then
 				root.chars[key] = root.chars[k]
 			else
@@ -355,9 +360,22 @@ local function reconcile(root, key, name)
 	end
 end
 
-function ME:SelectProfile()
+function ME:SelectProfile(lastTry)
 	local root = self.root
 	local key, charName = characterKey()
+	if not key and lastTry and charName then
+		-- Realm still unknown at login: use this character's existing
+		-- profile if there is exactly one with a realm.
+		local found
+		for k in pairs(root.chars) do
+			local n, r = k:match("^(.-)%-(.*)$")
+			if n == charName and r ~= "" then
+				if found then found = nil break end
+				found = k
+			end
+		end
+		key = found or (charName .. "-")
+	end
 	if not key then return false end
 	reconcile(root, key, charName)
 	self.charKey = key
@@ -413,7 +431,7 @@ ME:On("PLAYER_LOGIN", function()
 		-- Class addon: stay completely inert on other classes.
 		return
 	end
-	if not ME.charKey then ME:SelectProfile() end
+	if not ME.charKey then ME:SelectProfile(true) end
 	if not ME.root.enabled then
 		ME:Print("Disabled. Type /mage on to enable, then /reload.")
 		return

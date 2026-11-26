@@ -257,6 +257,9 @@ function Options:Diagnose()
 		p(("  herb/ore icons: addon option %s, game setting %s, sparkles: %s, last search: %s, attached: %s"):format(
 			ME.db.qol.nodeIcons and "on" or "off", ME.Nodes.GameShowsObjectIcons() and "on" or "off",
 			ME.db.qol.nodeFX and "on" or "off", find, yn(attached)))
+		if ME.Nodes.InteractKeyOff() then
+			p("  |cffff5555the game's 'Enable Interact Key' is off: nodes are only marked for gamepads. /mage herbicons fixes it.|r")
+		end
 		p("  interact settings:", ME.QoL:NodeCVarReport(),
 			"| node marked now:", yn(ME.Bool(ME.Try(UnitIsGameObject, "softinteract"))))
 	end
@@ -360,6 +363,7 @@ local function help()
 	print("  /mage profile - per-character settings: list, share, copy, reset")
 	print("  /mage demo - play sample content in every section, for arranging the layout")
 	print("  /mage herbs - Herbalism tracker: skill, next herb, timeline and herbs gathered")
+	print("  /mage herbicons - turn herb and ore icons back on (and keep them on)")
 	print("  /mage xplog - show / hide the XP log (/mage xplog clear empties it)")
 	print("  /mage rescan - re-read your spellbook and talents now")
 	print("  /mage restock - buy reagents up to your limits from the open vendor")
@@ -397,6 +401,11 @@ local function slash(msg)
 		Options:Diagnose()
 	elseif msg == "herbs" or msg == "herb" or msg == "herbalism" then
 		ME.Herbs:Toggle()
+	elseif msg == "herbicons" then
+		ME.db.qol.nodeIcons = true
+		ME.QoL:ApplyNodeIcons()
+		ME.Nodes:Refresh()
+		ME:Print("Herb and ore icons on (Interact Key enabled). The addon keeps them on if a patch resets them.")
 	elseif msg == "xplog clear" then
 		ME.XPFeed:Clear()
 		ME:Print("XP log cleared.")

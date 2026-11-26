@@ -21,10 +21,24 @@ local IN_REACH = { 0.35, 1, 0.45 }
 
 -- On when our herb/ore option is on, or the game's own "Interact Icons:
 -- Show All" setting already shows icons on objects.
-local function gameShowsObjectIcons()
+local function cvar(name)
 	local get = (C_CVar and C_CVar.GetCVar) or GetCVar
-	local v = get and ME.Try(get, "SoftTargetIconGameObject")
-	return v ~= nil and not ME.issecret(v) and tostring(v) == "1"
+	local v = get and ME.Try(get, name)
+	if v == nil or ME.issecret(v) then return nil end
+	return tostring(v)
+end
+
+local function gameShowsObjectIcons()
+	return cvar("SoftTargetIconGameObject") == "1"
+end
+
+-- The game only marks nodes for mouse and keyboard when "Enable Interact
+-- Key" is on (softTargetInteract 2 or 3). At 0 or 1 (gamepad only) nothing
+-- is ever marked, so there is no icon to show or decorate.
+function Nodes.InteractKeyOff()
+	local v = tonumber(cvar("softTargetInteract") or "")
+	if not v then return false end
+	return v ~= 2 and v ~= 3 -- 2 = mouse and keyboard, 3 = any input
 end
 Nodes.GameShowsObjectIcons = gameShowsObjectIcons
 
@@ -265,6 +279,14 @@ end
 function Nodes:OnLogin()
 	build()
 	buildBadge()
+	-- Herb icons wanted, but the game is marking nodes for gamepads only.
+	C_Timer.After(5, function()
+		local db = ME.db.qol
+		if db.nodeFX and not db.nodeIcons and gameShowsObjectIcons() and Nodes.InteractKeyOff() then
+			ME:Print("Herb and ore icons are not showing because the game's 'Enable Interact Key' setting is off "
+				.. "(it was probably reset by a patch). Type |cff69ccf0/mage herbicons|r to turn it back on.")
+		end
+	end)
 	-- Show the badge while frames are unlocked, so it can be placed.
 	ME:Listen("LOCK_CHANGED", function(locked)
 		if not locked then badge:Show() else Nodes:Refresh() end

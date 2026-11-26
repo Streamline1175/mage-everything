@@ -10,6 +10,10 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.8.3"] = {
+		"Fixed: a blank realm name on login could start a fresh settings profile. Your settings are restored.",
+		"Herb icons: the addon now spots when the game's Interact Key setting was turned off; /mage herbicons fixes it.",
+	},
 	["1.8.2"] = {
 		"The XP feed is now a scrollable XP log: every gain is kept (saved per character); mouse wheel scrolls back.",
 		"Mini herb tracker: a small always-on bar with the next herb to unlock.",
