@@ -10,6 +10,10 @@ ME.LOGO = MEDIA .. "Logo"
 
 -- Shown on the first page after an update. Newest first.
 local CHANGES = {
+	["1.8.2"] = {
+		"The XP feed is now a scrollable XP log: every gain is kept (saved per character); mouse wheel scrolls back.",
+		"Mini herb tracker: a small always-on bar with the next herb to unlock.",
+	},
 	["1.8.1"] = {
 		"Mini herb tracker: a small always-on bar with the next herb to unlock. Drag it anywhere; click for the full tracker.",
 		"Live XP feed beside the XP bar.",

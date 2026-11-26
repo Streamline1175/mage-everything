@@ -1,8 +1,10 @@
--- MageEverything: live XP feed.
+-- MageEverything: live XP log.
 --
--- A short scrolling list beside the XP bar: one line per XP gain, with what
--- it came from (kill, quest, exploration, gathering, other), the amount, the
--- rested bonus part, and its share of the level. Lines fade after a while.
+-- A small scrollable window listing every XP gain: when, how much, what it
+-- came from (the mob, the quest, the place discovered, gathering, other),
+-- the rested part and its share of the level. The latest 18 (adjustable)
+-- are shown; the mouse wheel scrolls back through older ones. The log is
+-- saved per character, so it survives logging out.
 --
 -- The game's XP total is the source of truth: every change in it becomes a
 -- line. The label comes from the message that explains it (kill, quest hand
@@ -12,7 +14,8 @@ local _, ME = ...
 local Feed = ME:NewModule("XPFeed")
 local FX = ME.FX
 
-local LINES = 8
+local MAX_KEPT = 5000
+local ROW_H = 16
 local ICONS = {
 	kill    = "Interface\\Icons\\Ability_Warrior_Rampage",
 	quest   = "Interface\\GossipFrame\\ActiveQuestIcon",
@@ -23,7 +26,8 @@ local ICONS = {
 local KIND_NAME = { kill = "Kills", quest = "Quests", explore = "Exploration", gather = "Gathering", other = "Other" }
 
 local root, rows = nil, {}
-local entries = {}       -- newest last: { amount, kind, label, rested, time, pct }
+local entries = {}       -- this character's saved log, newest last
+local offset = 0         -- how many entries scrolled back from the newest
 local pending = {}       -- explained gains waiting to be matched to XP changes
 local lastXP, lastMax
 local lastGatherAt = 0
@@ -51,69 +55,150 @@ end
 ---------------------------------------------------------------------------
 -- Display
 ---------------------------------------------------------------------------
+local function lines() return ME.db.xpfeed.lines or 18 end
+
 local function build()
 	root = CreateFrame("Frame", "MageEverythingXPFeed", UIParent)
-	root:SetSize(260, LINES * 18)
-	ME:MakeMovable(root, "xpfeed", "XP feed", "BOTTOMRIGHT", -330, 40)
-	for i = 1, LINES do
-		local r = CreateFrame("Frame", nil, root)
-		r:SetSize(260, 18)
-		r:SetPoint("BOTTOMLEFT", 0, (i - 1) * 18)
-		r.icon = r:CreateTexture(nil, "ARTWORK")
-		r.icon:SetSize(15, 15)
-		r.icon:SetPoint("LEFT", 0, 0)
-		r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-		r.amount = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		r.amount:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
-		r.amount:SetWidth(62)
-		r.amount:SetJustifyH("LEFT")
-		r.label = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-		r.label:SetPoint("LEFT", r.amount, "RIGHT", 2, 0)
-		r.label:SetWidth(190)
-		r.label:SetJustifyH("LEFT")
-		r.label:SetWordWrap(false)
-		r.pop = FX.Pop(r, 1.3, 0.2)
-		r:Hide()
-		rows[i] = r
-	end
+	root:SetClampedToScreen(true)
+	ME:MakeMovable(root, "xpfeed", "XP log", "BOTTOMRIGHT", -330, 40)
+	-- Drag it any time.
 	root:EnableMouse(true)
+	root:RegisterForDrag("LeftButton")
+	root:SetScript("OnDragStart", function(self) self:StartMoving() end)
+	root:SetScript("OnDragStop", function(self)
+		self:StopMovingOrSizing()
+		local p, _, rp, x, y = self:GetPoint(1)
+		if p then ME.db.pos.xpfeed = { p, rp, x, y } end
+	end)
+	local bg = root:CreateTexture(nil, "BACKGROUND")
+	bg:SetAllPoints()
+	bg:SetColorTexture(0.02, 0.02, 0.05, 0.7)
+	root.border = FX.Border(root, 1, 0.3, 0.3, 0.4, 1)
+
+	root.title = root:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	root.title:SetPoint("TOPLEFT", 6, -4)
+	root.title:SetText("XP log")
+	root.total = root:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	root.total:SetPoint("TOPRIGHT", -8, -4)
+	root.total:SetJustifyH("RIGHT")
+
+	-- Scroll position marker on the right edge.
+	root.track = root:CreateTexture(nil, "ARTWORK")
+	root.track:SetColorTexture(1, 1, 1, 0.08)
+	root.track:SetWidth(3)
+	root.track:SetPoint("TOPRIGHT", -2, -20)
+	root.track:SetPoint("BOTTOMRIGHT", -2, 4)
+	root.thumb = root:CreateTexture(nil, "OVERLAY")
+	root.thumb:SetColorTexture(0.6, 0.8, 1, 0.6)
+	root.thumb:SetWidth(3)
+
+	root.back = root:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	root.back:SetPoint("BOTTOMRIGHT", -8, 4)
+
+	root:EnableMouseWheel(true)
+	root:SetScript("OnMouseWheel", function(_, delta)
+		local maxOffset = math.max(0, #entries - lines())
+		offset = math.max(0, math.min(maxOffset, offset + (delta > 0 and 3 or -3)))
+		Feed:Render()
+	end)
 	root:SetScript("OnEnter", function() Feed:Tooltip() end)
 	root:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-local function render(popNewest)
-	if not root then return end
-	local t = FX.Theme()
-	local n = #entries
-	for i = 1, LINES do
+local function ensureRows()
+	local n = lines()
+	root:SetSize(300, 24 + n * ROW_H + 14)
+	for i = 1, math.max(n, #rows) do
 		local r = rows[i]
-		local e = entries[n - i + 1] -- row 1 (bottom) = newest
+		if not r and i <= n then
+			r = CreateFrame("Frame", nil, root)
+			r:SetSize(288, ROW_H)
+			r.time = r:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+			r.time:SetPoint("LEFT", 0, 0)
+			r.time:SetWidth(34)
+			r.time:SetJustifyH("LEFT")
+			r.icon = r:CreateTexture(nil, "ARTWORK")
+			r.icon:SetSize(13, 13)
+			r.icon:SetPoint("LEFT", r.time, "RIGHT", 2, 0)
+			r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+			r.amount = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+			r.amount:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
+			r.amount:SetWidth(52)
+			r.amount:SetJustifyH("LEFT")
+			r.label = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+			r.label:SetPoint("LEFT", r.amount, "RIGHT", 2, 0)
+			r.label:SetWidth(180)
+			r.label:SetJustifyH("LEFT")
+			r.label:SetWordWrap(false)
+			r.pop = FX.Pop(r, 1.2, 0.18)
+			rows[i] = r
+		end
+		if r then
+			r:ClearAllPoints()
+			-- Newest at the bottom.
+			r:SetPoint("BOTTOMLEFT", root, "BOTTOMLEFT", 6, 14 + (i - 1) * ROW_H)
+			r:SetShown(i <= n)
+		end
+	end
+end
+
+function Feed:Render(popNewest)
+	if not root or not root:IsShown() then return end
+	local t = FX.Theme()
+	local n, total = lines(), #entries
+	for i = 1, n do
+		local r = rows[i]
+		local e = entries[total - offset - i + 1]
 		if e then
+			r.time:SetText(date and e.when and date("%H:%M", e.when) or "")
 			r.icon:SetTexture(ICONS[e.kind] or ICONS.other)
 			r.amount:SetText(("+%s"):format(ME.Comma(e.amount)))
 			r.amount:SetTextColor(t.r, t.g, t.b)
 			local extra = ""
-			if e.rested > 0 then extra = extra .. ("  |cff7fd4ff+%s rested|r"):format(ME.Comma(e.rested)) end
+			if (e.rested or 0) > 0 then extra = extra .. ("  |cff7fd4ff+%s rested|r"):format(ME.Comma(e.rested)) end
 			if e.pct and e.pct >= 0.1 then extra = extra .. ("  |cff999999%.1f%%|r"):format(e.pct) end
 			r.label:SetText(e.label .. extra)
-			r.born = e.time
-			r:SetAlpha(1)
-			r:Show()
-			if i == 1 and popNewest then r.pop:Stop(); r.pop:Play() end
+			r.icon:Show()
+			if i == 1 and popNewest and offset == 0 then r.pop:Stop(); r.pop:Play() end
 		else
-			r:Hide()
+			r.time:SetText("")
+			r.amount:SetText("")
+			r.label:SetText(i == 1 and total == 0 and "|cff777777XP you gain will be listed here|r" or "")
+			r.icon:Hide()
 		end
 	end
+	-- Session total and scroll position.
+	local sum = 0
+	for _, v in pairs(totals) do sum = sum + v end
+	root.total:SetText(sum > 0 and ("session +" .. ME.Comma(sum)) or "")
+	local maxOffset = math.max(0, total - n)
+	if maxOffset > 0 then
+		local h = root.track:GetHeight()
+		if not h or h <= 0 or ME.issecret(h) then h = n * ROW_H end
+		local th = math.max(8, h * n / total)
+		root.thumb:SetHeight(th)
+		root.thumb:ClearAllPoints()
+		root.thumb:SetPoint("BOTTOMRIGHT", root.track, "BOTTOMRIGHT", 0, (h - th) * offset / maxOffset)
+		root.thumb:Show()
+		root.track:Show()
+	else
+		root.thumb:Hide()
+		root.track:Hide()
+	end
+	root.back:SetText(offset > 0 and ("|cffaaaaaa%d newer below - scroll down|r"):format(offset) or "")
 end
 
 local function add(amount, kind, label, rested)
 	if amount <= 0 then return end
 	local max = lastMax or UnitXPMax("player") or 1
 	entries[#entries + 1] = { amount = amount, kind = kind, label = label, rested = rested or 0,
-		time = GetTime(), pct = max > 0 and amount / max * 100 or nil }
-	while #entries > 50 do table.remove(entries, 1) end
+		when = time and time() or nil, level = UnitLevel("player"),
+		pct = max > 0 and math.floor(amount / max * 1000 + 0.5) / 10 or nil }
+	while #entries > MAX_KEPT do table.remove(entries, 1) end
 	totals[kind] = (totals[kind] or 0) + amount
-	if ME.db.xpfeed.enabled then render(true) end
+	-- If you are reading older lines, keep them in place.
+	if offset > 0 then offset = offset + 1 end
+	if ME.db.xpfeed.enabled then Feed:Render(true) end
 	ME:Fire("XP_FEED", amount, kind, label)
 end
 
@@ -130,10 +215,10 @@ function Feed:Tooltip()
 	end
 	GameTooltip:AddDoubleLine("Total", ME.Comma(sum), 1, 0.82, 0, 1, 0.82, 0)
 	GameTooltip:AddLine(" ")
-	for i = #entries, math.max(1, #entries - 14), -1 do
-		local e = entries[i]
-		GameTooltip:AddDoubleLine(e.label, "+" .. ME.Comma(e.amount), 0.8, 0.8, 0.8, 1, 1, 1)
-	end
+	local all = 0
+	for _, e in ipairs(entries) do all = all + e.amount end
+	GameTooltip:AddDoubleLine("Saved log", ("%d gains, %s XP"):format(#entries, ME.Comma(all)), 0.7, 0.7, 0.7, 0.7, 0.7, 0.7)
+	GameTooltip:AddLine("Mouse wheel to scroll. Drag to move. /mage xplog clear empties it.", 0.6, 0.6, 0.6)
 	GameTooltip:Show()
 end
 
@@ -181,11 +266,24 @@ end
 
 function Feed:ApplySettings()
 	if not root then return end
+	ensureRows()
 	root:SetShown(ME.db.xpfeed.enabled)
 	root:SetScale(ME.db.xpfeed.scale or 1)
+	self:Render()
+end
+
+function Feed:Clear()
+	wipe(entries)
+	offset = 0
+	self:Render()
 end
 
 function Feed:OnLogin()
+	-- This character's saved log.
+	local root2 = ME.root
+	root2.xplog = root2.xplog or {}
+	root2.xplog[ME.charKey or "?"] = root2.xplog[ME.charKey or "?"] or {}
+	entries = root2.xplog[ME.charKey or "?"]
 	build()
 	self:ApplySettings()
 	lastXP, lastMax = UnitXP("player"), UnitXPMax("player")
@@ -228,23 +326,6 @@ function Feed:OnLogin()
 		local name = ME.Spells.SpellName(spellID)
 		if name and (name:find("Herb") or name:find("Mining") or name:find("Skinning")) then
 			lastGatherAt = GetTime()
-		end
-	end)
-
-	-- Fade old lines.
-	C_Timer.NewTicker(0.5, function()
-		if not root:IsShown() then return end
-		local life = ME.db.xpfeed.fade or 30
-		local now = GetTime()
-		for _, r in ipairs(rows) do
-			if r:IsShown() and r.born then
-				local age = now - r.born
-				if age > life then
-					r:Hide()
-				elseif age > life - 5 then
-					r:SetAlpha((life - age) / 5)
-				end
-			end
 		end
 	end)
 

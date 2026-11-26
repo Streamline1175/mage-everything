@@ -89,9 +89,9 @@ local function buildPanel()
 
 	check(db.xp, "enabled", "Mage experience bar", "Spec-themed XP bar.")
 	check(db.xp, "hideBlizzard", "Hide the default XP bar (needs /reload)", "Also hides the default reputation bar.")
-	check(db.xpfeed, "enabled", "Live XP feed", "A line for every XP gain: kills, quests, discoveries, gathering. Hover it for session totals.")
-	slider(db.xpfeed, "fade", "XP feed lines fade after (seconds)", nil, 5, 120, 5, "%d")
-	slider(db.xpfeed, "scale", "XP feed scale", nil, 0.6, 2, 0.05, "%.2f")
+	check(db.xpfeed, "enabled", "XP log window", "Every XP gain: kills, quests, discoveries, gathering. Mouse wheel scrolls back; hover for session totals.")
+	slider(db.xpfeed, "lines", "XP log lines shown", nil, 10, 25, 1, "%d")
+	slider(db.xpfeed, "scale", "XP log scale", nil, 0.6, 2, 0.05, "%.2f")
 	check(db.xp, "showText", "XP bar text", nil)
 	check(db.xp, "showDetail", "XP bar details line", "Rested, XP per hour, time to level and kills, above the bar.")
 	check(db.xp, "showQuestXP", "Show XP from completed quests", "Gold overlay for quests ready to hand in.")
@@ -360,6 +360,7 @@ local function help()
 	print("  /mage profile - per-character settings: list, share, copy, reset")
 	print("  /mage demo - play sample content in every section, for arranging the layout")
 	print("  /mage herbs - Herbalism tracker: skill, next herb, timeline and herbs gathered")
+	print("  /mage xplog - show / hide the XP log (/mage xplog clear empties it)")
 	print("  /mage rescan - re-read your spellbook and talents now")
 	print("  /mage restock - buy reagents up to your limits from the open vendor")
 	print("  /mage welcome - setup guide")
@@ -396,6 +397,12 @@ local function slash(msg)
 		Options:Diagnose()
 	elseif msg == "herbs" or msg == "herb" or msg == "herbalism" then
 		ME.Herbs:Toggle()
+	elseif msg == "xplog clear" then
+		ME.XPFeed:Clear()
+		ME:Print("XP log cleared.")
+	elseif msg == "xplog" then
+		ME.db.xpfeed.enabled = not ME.db.xpfeed.enabled
+		ME.XPFeed:ApplySettings()
 	elseif msg == "rescan" then
 		ME.Spells:Rebuild()
 		ME.Spec:Update()
