@@ -83,6 +83,8 @@ local function buildPanel()
 	check(db.alerts, "enabled", "Proc banners", "Animated banners for procs, level-ups and new spells.")
 	check(db.alerts, "sound", "Proc sound", nil)
 	check(db.alerts, "herbs", "Banner when you can gather a new herb", nil)
+	check(db.herbs, "mini", "Mini herb tracker", "A small bar with the next herb to unlock. Drag it anywhere; click it for the full tracker.")
+	slider(db.herbs, "miniScale", "Mini herb tracker scale", nil, 0.6, 2, 0.05, "%.2f")
 	slider(db.alerts, "scale", "Banner scale", nil, 0.6, 2, 0.05, "%.2f")
 
 	check(db.xp, "enabled", "Mage experience bar", "Spec-themed XP bar.")

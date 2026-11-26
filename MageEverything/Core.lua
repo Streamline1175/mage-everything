@@ -3,7 +3,7 @@ local ADDON, ME = ...
 _G.MageEverything = ME
 
 ME.name = ADDON
-ME.version = "1.8.0"
+ME.version = "1.8.1"
 ME.modules = {}
 
 ---------------------------------------------------------------------------
@@ -60,6 +60,7 @@ ME.defaults = {
 		showQuestXP = true, effects = true,
 	},
 	xpfeed = { enabled = true, fade = 30, scale = 1.0 },
+	herbs = { mini = true, miniScale = 1.0 },
 	reminders = { enabled = true, intellect = true, armor = true, conjure = true, gem = true, drink = true, drinkAt = 0.45,
 		eat = true, eatAt = 0.6, cannibalize = true, healWindow = 30, wand = true, curse = true, trainer = true, nameplates = true },
 	portals = { enabled = true },

@@ -340,7 +340,120 @@ local function build()
 	win:Hide()
 end
 
+---------------------------------------------------------------------------
+-- Mini tracker: a small always-on bar with the next herb to unlock.
+-- Drag it anywhere; click it to open the full window.
+---------------------------------------------------------------------------
+local mini
+
+local function buildMini()
+	mini = CreateFrame("Button", "MageEverythingHerbMini", UIParent)
+	mini:SetSize(200, 30)
+	mini:SetClampedToScreen(true)
+	ME:MakeMovable(mini, "herbmini", "Herb tracker", "TOPRIGHT", -220, -230)
+	mini:RegisterForDrag("LeftButton")
+	mini:RegisterForClicks("LeftButtonUp")
+	mini:SetScript("OnDragStart", function(self) self:StartMoving() end)
+	mini:SetScript("OnDragStop", function(self)
+		self:StopMovingOrSizing()
+		local p, _, rp, x, y = self:GetPoint(1)
+		if p then ME.db.pos.herbmini = { p, rp, x, y } end
+	end)
+	mini:SetScript("OnClick", function() Herbs:Toggle() end)
+
+	local bg = mini:CreateTexture(nil, "BACKGROUND")
+	bg:SetAllPoints()
+	bg:SetColorTexture(0.02, 0.05, 0.03, 0.75)
+	mini.border = FX.Border(mini, 1, 0.25, 0.6, 0.32, 1)
+	mini.icon = mini:CreateTexture(nil, "ARTWORK")
+	mini.icon:SetSize(26, 26)
+	mini.icon:SetPoint("LEFT", 2, 0)
+	mini.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+	mini.name = mini:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	mini.name:SetPoint("TOPLEFT", mini.icon, "TOPRIGHT", 5, -1)
+	mini.name:SetPoint("RIGHT", -4, 0)
+	mini.name:SetJustifyH("LEFT")
+	mini.name:SetWordWrap(false)
+	mini.bar = bar(mini, 164, 9)
+	mini.bar:SetPoint("BOTTOMLEFT", mini.icon, "BOTTOMRIGHT", 5, 1)
+	mini.bar:SetPoint("RIGHT", -4, 0)
+	mini.bar:SetStatusBarColor(1, 0.75, 0.25)
+	mini.bar.text:SetFontObject("GameFontHighlightSmall")
+	mini.bar.text:SetScale(0.85)
+	mini.shine = FX.Shine(mini.bar)
+
+	mini:SetScript("OnEnter", function(self)
+		local skill, cap = Herbs:Skill()
+		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+		GameTooltip:AddLine("Herbalism", 0.5, 1, 0.55)
+		if skill then
+			GameTooltip:AddDoubleLine("Skill", ("%d / %d"):format(skill, cap), 1, 1, 1, 1, 1, 1)
+			-- Which herbs give skill-ups right now.
+			local best = {}
+			for _, n in ipairs(NODES) do
+				local state = colorFor(n, skill)
+				if state == "orange" or state == "yellow" then
+					local col = COLOR[state]
+					best[#best + 1] = { itemName(n[1], n[2]), col }
+				end
+			end
+			if #best > 0 then
+				GameTooltip:AddLine("Skill-ups from:", 1, 0.82, 0)
+				for _, b in ipairs(best) do GameTooltip:AddLine("  " .. b[1], b[2][1], b[2][2], b[2][3]) end
+			end
+		end
+		GameTooltip:AddLine("Drag to move. Click for the full tracker.", 0.6, 0.6, 0.6)
+		GameTooltip:Show()
+	end)
+	mini:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	mini:Hide()
+end
+
+local lastNext
+function Herbs:RefreshMini()
+	if not mini then return end
+	local skill, cap = self:Skill()
+	if not ME.db.herbs.mini or not skill then
+		mini:Hide()
+		return
+	end
+	local nxt = nextNode(skill)
+	if nxt then
+		local prev = 0
+		for _, n in ipairs(NODES) do if n[3] < nxt[3] then prev = n[3] end end
+		mini.icon:SetTexture(itemIcon(nxt[1]))
+		mini.icon:SetDesaturated(true)
+		mini.name:SetText(("Next: |cffffffff%s|r  |cff999999(%d)|r"):format(itemName(nxt[1], nxt[2]), nxt[3]))
+		mini.bar:SetMinMaxValues(prev, nxt[3])
+		mini.bar:SetValue(skill)
+		local need = nxt[3] - skill
+		if cap and nxt[3] > cap and RANKS[cap] then
+			mini.bar.text:SetText(("%d to go - train %s"):format(need, RANKS[cap][1]))
+			mini.bar:SetStatusBarColor(1, 0.45, 0.25)
+		else
+			mini.bar.text:SetText(("%d / %d  -  %d to go"):format(skill, nxt[3], need))
+			mini.bar:SetStatusBarColor(1, 0.75, 0.25)
+		end
+		if lastNext and lastNext ~= nxt[1] then mini.shine.Play() end
+		lastNext = nxt[1]
+	else
+		mini.icon:SetTexture(itemIcon(13468))
+		mini.icon:SetDesaturated(false)
+		mini.name:SetText("|cff59ff73Every herb unlocked|r")
+		mini.bar:SetMinMaxValues(0, 300)
+		mini.bar:SetValue(skill)
+		mini.bar.text:SetText(("%d / %d"):format(skill, cap or 300))
+	end
+	mini:SetScale(ME.db.herbs.miniScale or 1)
+	mini:Show()
+end
+
+function Herbs:ApplySettings()
+	self:RefreshMini()
+end
+
 function Herbs:Refresh()
+	self:RefreshMini()
 	if not win or not win:IsShown() then return end
 	local skill, cap = self:Skill()
 	local c = counts()
@@ -434,6 +547,10 @@ function Herbs:Toggle()
 end
 
 function Herbs:OnLogin()
+	buildMini()
+	-- The skill list can arrive a moment after login.
+	C_Timer.After(2, function() Herbs:RefreshMini() end)
+	ME:On("PLAYER_ENTERING_WORLD", function() C_Timer.After(1, function() Herbs:RefreshMini() end) end)
 	ME:On("CHAT_MSG_LOOT", onLoot)
 	-- Banner when a skill-up unlocks a new herb.
 	local last = self:Skill()
